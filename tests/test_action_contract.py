@@ -36,9 +36,16 @@ class ActionContractTests(unittest.TestCase):
         self.assertEqual(action["inputs"]["model_id"]["default"], "us.amazon.nova-lite-v1:0")
 
     def test_workflows_pin_actions_and_never_use_pull_request_target(self) -> None:
-        workflow_sources = [path.read_text(encoding="utf-8") for path in (ROOT / ".github/workflows").glob("*.yml")]
+        workflow_paths = list((ROOT / ".github/workflows").glob("*.yml"))
+        workflow_sources = [path.read_text(encoding="utf-8") for path in workflow_paths]
         combined = "\n".join(workflow_sources)
         self.assertNotIn("pull_request_target", combined)
+        for path in workflow_paths:
+            workflow = yaml.safe_load(path.read_text(encoding="utf-8"))
+            for job in workflow["jobs"].values():
+                for step in job["steps"]:
+                    self.assertIsInstance(step, dict, path)
+                    self.assertTrue("run" in step or "uses" in step, (path, step))
         for use in re.findall(r"uses:\s*([^\s#]+)", combined + "\n" + (ROOT / "action.yml").read_text(encoding="utf-8")):
             if use == "./":
                 continue

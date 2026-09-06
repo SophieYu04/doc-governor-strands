@@ -24,7 +24,7 @@ jobs:
       - name: Verify the MCP SDK import
         run: python -c 'from mcp.server import Server; from mcp.server.stdio import stdio_server; print(Server)'
       - run: python scripts/demo.py --mcp-stdio
-        - name: Verify repository trust state
+      - name: Verify repository trust state
         shell: bash
         run: |
           exit_code=0
