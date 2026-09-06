@@ -3,9 +3,9 @@
   "documents": [
     {
       "canonical_path": null,
-      "content_sha256": "b3e90a0b79f4494b4b843a554b2230844e4d906004a8ca31c6d88d3061f52d68",
-      "dependency_fingerprint": "d60f9bb3a7a5851408f4fb47535428134f3b9b928cc31ee280ef83bb9362e4c4",
-      "head_sha": "bdf20adfdf4ef6ab5446661f517d820f6488bf1a",
+      "content_sha256": "800710ef4789f883a71cb21be06c7493fc80174a853b46b9f0b09a01eb602b27",
+      "dependency_fingerprint": "5e4d4f169403725a9409f06ff40a8d28d49080da2e3bb01839858edcb284ad5f",
+      "head_sha": "ca95ff5bcf89f55e92c37361cadca4a0545a3e2e",
       "path": "AGENTS.md",
       "reason": "Governance control document is readable so the trust gate can bootstrap.",
       "scope": "current_fact",
@@ -31,19 +31,20 @@
         "docgov/models.py",
         "docgov/patterns.py",
         "docgov/repair.py",
+        "docgov/repair_agents.py",
         "docgov/supabase.py",
         "docgov/supabase_remote.py",
         "docgov/trust_state.py"
       ],
       "type": "procedure",
       "usable": true,
-      "verified_at": "2026-09-06T10:07:40Z"
+      "verified_at": "2026-09-06T11:16:47Z"
     },
     {
       "canonical_path": null,
-      "content_sha256": "ea38b01d11dc9e89a74d9da0e54d6b15df1d345fd4a6ede8f14513f618a36c99",
-      "dependency_fingerprint": "71f32a5c49dfe316b848d5f2ca777b6a168091090d1a582dba6456ee66be94bd",
-      "head_sha": "bdf20adfdf4ef6ab5446661f517d820f6488bf1a",
+      "content_sha256": "7949100ddfa4b7857c9bd8e32647a8379ab95b4e1f9ecc0bbe219ab7bbaa9f52",
+      "dependency_fingerprint": "2a7c038f768131ec31f1d7d5247879f732eb879ebb7af869ea7a79f8b9ae8064",
+      "head_sha": "ca95ff5bcf89f55e92c37361cadca4a0545a3e2e",
       "path": "README.md",
       "reason": "The document is current and its recorded evidence still matches.",
       "scope": "current_fact",
@@ -69,6 +70,7 @@
         "docgov/models.py",
         "docgov/patterns.py",
         "docgov/repair.py",
+        "docgov/repair_agents.py",
         "docgov/supabase.py",
         "docgov/supabase_remote.py",
         "docgov/trust_state.py",
@@ -76,7 +78,7 @@
       ],
       "type": "contract",
       "usable": true,
-      "verified_at": "2026-09-06T10:07:40Z"
+      "verified_at": "2026-09-06T11:16:47Z"
     },
     {
       "canonical_path": null,
