@@ -74,6 +74,12 @@ class ActionContractTests(unittest.TestCase):
         self.assertNotIn("git add .", source)
         self.assertIn('gh pr create --base main', source)
 
+    def test_ci_proves_unapproved_documentation_fails_closed(self) -> None:
+        source = (ROOT / ".github/workflows/test.yml").read_text(encoding="utf-8")
+        self.assertIn("Prove unapproved documentation fails closed", source)
+        self.assertIn("|| test $? -eq 2", source)
+        self.assertIn('{("README.md", "block")}', source)
+
     def test_pre_commit_repair_hook_makes_strands_explicit_and_never_self_approves(self) -> None:
         source = (ROOT / ".githooks/pre-commit").read_text(encoding="utf-8")
         self.assertIn("DOCGOV_REPAIR_PLANNER_COMMAND", source)
