@@ -8,12 +8,14 @@ from pathlib import Path
 from typing import Any, Dict, List
 
 from .agent import govern
+from .agents import AgentContractError
 from .catalog import Catalog
 from .engine import analyze_trust, apply_safe_actions, build_snapshot, record_baseline
 from .git_tools import current_sha, tracked_paths
 from .ledger import utc_now
 from .models import DocumentRecord, GovernanceDecision
 from .repair import build_repair_prompt, repair_candidates
+from .repair_agents import RepairPlanError
 from .supabase_remote import (
     DEFAULT_EVIDENCE_DIR,
     PROMOTION_ACTION,
@@ -358,9 +360,15 @@ def main(argv: List[str] | None = None) -> int:
 
     repair_parser = subparsers.add_parser(
         "repair-prompt",
-        help="Emit a provider-neutral prompt for impacted required documents",
+        help="Use Strands to plan repairs and emit a prompt for the configured coding agent",
     )
     repair_parser.add_argument("--json", action="store_true", dest="sub_json")
+    repair_parser.add_argument(
+        "--enable-model",
+        action="store_true",
+        default=os.environ.get("DOCGOV_ENABLE_MODEL", "").lower() in {"1", "true", "yes"},
+    )
+    repair_parser.add_argument("--model-id", default=os.environ.get("DOCGOV_MODEL_ID"))
 
     args = parser.parse_args(argv)
     args.as_json = bool(args.as_json or getattr(args, "sub_json", False))
@@ -462,12 +470,32 @@ def main(argv: List[str] | None = None) -> int:
         _print(decision, args.as_json)
         return _exit_code(decision)
     if args.command == "repair-prompt":
-        prompt = build_repair_prompt(snapshot)
+        try:
+            prompt = build_repair_prompt(
+                snapshot,
+                enable_model=args.enable_model,
+                model_id=args.model_id,
+            )
+        except (RepairPlanError, AgentContractError, OSError, RuntimeError) as exc:
+            if args.as_json:
+                print(json.dumps({
+                    "documents": [record.path for record in repair_candidates(snapshot)],
+                    "error": f"Strands repair planning failed closed: {exc}",
+                    "model_used": bool(args.enable_model),
+                    "required": True,
+                    "result": "blocked",
+                }, ensure_ascii=False))
+            else:
+                print(f"Strands repair planning failed closed: {exc}", file=sys.stderr)
+            return 2
         if args.as_json:
             print(json.dumps({
                 "documents": [record.path for record in repair_candidates(snapshot)],
+                "model_used": bool(args.enable_model and prompt),
+                "planner": "strands" if args.enable_model and prompt else "deterministic",
                 "prompt": prompt,
                 "required": bool(prompt),
+                "result": "pass",
             }, ensure_ascii=False))
         else:
             print(prompt, end="")

@@ -4,7 +4,7 @@ Hard rules for this recording:
   * No jargon in the first 30 seconds. No "MCP", no "fingerprint", no "Strands",
     no "governance". A judge who has never seen the repo must understand the
     problem before any product name is said.
-  * The single most persuasive moment is 03:00 (a trusted document becomes
+  * The single most persuasive moment is 02:45 (a trusted document becomes
     unreadable with nothing re-running). Do not rush it. Do not talk over it.
   * Everything on screen must be real. No slides pretending to be terminals.
 
@@ -63,31 +63,31 @@ SAY:
   compare."
 
 
-01:15–02:00 — THE WRITE PATH
+01:15–02:05 — THE REPETITIVE JOB DISAPPEARS
+------------------------------------------------------------------------------
+ON SCREEN: change a declared source file, then run a commit with
+DOCGOV_ENABLE_MODEL=1. Show the Repair Planner output and the staged doc diff.
+
+SAY:
+  "As a solo developer, this is the repetitive job I wanted gone. I finish a
+  code change, then type 'update the docs' again and again.
+
+  Doc Governor first finds the affected required documents with Git paths and
+  hashes — zero model tokens. Only then does a read-only Strands Repair Planner
+  on Amazon Bedrock produce evidence-bounded instructions. It can read only this
+  document and changed files the catalog says it depends on.
+
+  My existing Codex account executes the plan. The tests pass, and the repaired
+  file is staged before commit.
+
+  But the hook does not approve what Codex wrote. Tests prove that software runs;
+  they do not prove that prose is true. A maintainer still owns that decision."
+
+
+02:05–02:45 — THE READ GATE
 ------------------------------------------------------------------------------
 RUN: python scripts/demo.py --keep
 
-SAY while it runs:
-  "The demo simulates an AI agent making a mess: it adds a new server function,
-  duplicates the API document, bumps a verification date with no evidence behind
-  it, and edits protected public copy."
-
-ON SCREEN: the JSON output. Point at:
-  - safe_modified_paths → the duplicate is gone, the inventories are synced
-  - blocking_kinds      → conflict, unverified_date
-
-SAY:
-  "What's mechanically recoverable from the source, it fixed: the function
-  inventory is now correct in both documents, and the duplicate was merged away.
-
-  What no code can prove — somebody's claim that they verified a release, and
-  protected public copy — it refused to touch. Rewriting those would be making
-  things up, and a made-up document is worse than a stale one, because it reads
-  as confident and nobody checks it."
-
-
-02:00–03:00 — THE READ  ← this is the product
-------------------------------------------------------------------------------
 ON SCREEN: the "reads" array from the demo output, one entry at a time.
 
 SAY:
@@ -109,7 +109,7 @@ SAY:
   Not a summary, not the first line."
 
 
-03:00–03:45 — THE MOMENT  ← slow down here
+02:45–03:25 — THE MOMENT  ← slow down here
 ------------------------------------------------------------------------------
 ON SCREEN: split view. Left: the terminal. Right: supabase/config.toml.
 
@@ -135,13 +135,19 @@ SAY:
   that protects the answer you're getting right now."
 
 
-03:45–04:15 — THREE AGENTS, EACH LESS PRIVILEGED THAN THE LAST
+03:25–04:10 — WHO CHECKS THE CHECKER?
 ------------------------------------------------------------------------------
-ON SCREEN: docgov/agents.py, the three AgentSpec blocks. Then the model_trace.
+ON SCREEN: the write-path architecture, then docgov/agents.py and the failing
+ungrounded-token test.
 
 SAY:
-  "On the write path there's a Strands agent graph on Amazon Bedrock. Three
-  agents — and the reason for three is not speed.
+  "Letting AI update documentation creates the exact risk we're trying to stop:
+  confident false memory. So who checks the checker?
+
+  Doc Governor uses four constrained Strands roles across two workflows. The
+  Repair Planner handles the repetitive pre-commit plan. A separate three-agent
+  governance graph audits evidence, resolves conflicts, and drafts only eligible
+  contract spans. The separation is about privilege, not speed.
 
   The Evidence Auditor judges whether the evidence supports a document's claims.
   It is deliberately not shown the document's own status line or its verified
@@ -163,7 +169,7 @@ SAY:
   discarded."
 
 
-04:15–04:35 — DRIFT, AND THE AWS BOUNDARY
+04:10–04:35 — DRIFT, AND THE AWS BOUNDARY
 ------------------------------------------------------------------------------
 ON SCREEN: the drift_findings line, then PRODUCTION.md flipping to refused.
 
@@ -174,8 +180,9 @@ SAY:
   it never deploys.
 
   On AWS: no long-lived keys anywhere. GitHub trades a short-lived identity
-  token for temporary credentials, and that role can invoke exactly one model
-  and nothing else. Pull requests from forks get no AWS identity at all."
+  token for temporary credentials, and that role can invoke only Amazon Nova
+  Lite through one inference profile. Pull requests from forks get no AWS
+  identity at all."
 
 
 04:35–04:50 — CLOSE

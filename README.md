@@ -24,32 +24,25 @@ The agent creates a correction commit on the pull request branch for safe change
 
 The model is reserved for semantic classification and ambiguity. Hashes, dependency matching, TTL checks, path boundaries, trust decisions, Supabase Advisor evidence, and ledger writes are deterministic and can run without AWS.
 
-## The two paths
+## The three enforcement points
 
 ```
-WRITE PATH (PR / daily audit)              READ PATH (every agent read)
-─────────────────────────────              ────────────────────────────
-
-  pull_request                               Codex / Claude Code / Cursor
-       │                                            │
-       ▼                                            │ MCP: get_document("docs/architecture/API.md")
-  deterministic scan                                ▼
-  (diff, hashes, TTL, catalog,              ┌──────────────────────┐
-   Supabase inventory)                      │ docgov-mcp server    │
-       │                                    │ 1. load trust.json   │
-       ▼                                    │ 2. recompute dep     │
-  ┌─────────────────────┐                   │    fingerprint NOW   │
-  │ Strands Graph       │                   │ 3. compare           │
-  │  ├ Evidence Auditor │ (parallel/doc)    └──────────┬───────────┘
-  │  ├ Conflict Resolver│                              │
-  │  └ Contract Drafter │                    ┌─────────┴─────────┐
-  └─────────┬───────────┘                    │                   │
-            │                             MATCH               MISMATCH
-  deterministic final ruling             (trusted)            (stale)
-            │                                │                   │
-            ├──► auto-correct contract docs  ▼                   ▼
-            ├──► .docgov/trust.json      return content     return refusal
-            └──► .docgov/ledger.jsonl                       + pointer to source
+BEFORE COMMIT                 ON THE PULL REQUEST             AT EVERY AGENT READ
+─────────────                 ───────────────────             ───────────────────
+Git paths + hashes            deterministic scan              MCP get_document
+  │                              │                              │
+  ▼                              ▼                              ▼
+Strands Repair Planner        Strands governance graph        recompute dependency
+(read-only, Nova Lite)        ├ Evidence Auditor              fingerprint NOW
+  │                     ├ Conflict Resolver                     │
+  ▼                     └ Contract Drafter                ┌─────┴─────┐
+Codex edits the document               │                     MATCH       MISMATCH
+  │                              ▼                       │             │
+  ▼                     deterministic ruling             ▼             ▼
+tests + stage repair          + trust table + ledger       return       refuse +
+  │                                                    content      source pointers
+  ▼
+maintainer approval required
 ```
 
 Trust is precomputed at pull-request time, on the daily audit, and after source reconciliation, then committed to `.docgov/trust.json`. The read path is a table lookup plus one cheap deterministic recheck — it never calls a model and never touches the network.
@@ -64,29 +57,33 @@ This reconciles source facts, not environment claims: a Git commit does not asse
 
 ### Coding-agent repair before commit
 
-Required control documents such as `AGENTS.md` and `README.md` can use the `auto_repair_documents` Catalog policy. When one of their declared dependencies changes, Doc Governor emits a bounded `repair-prompt` instead of marking the document stale. The tracked `.githooks/pre-commit` hook sends that prompt to the developer's configured coding agent, runs the repository verification command, and records the exact repaired document and dependency hashes only after verification succeeds. A failed repair or test blocks the commit.
+Required control documents such as `AGENTS.md` and `README.md` can use the `auto_repair_documents` Catalog policy. When one of their declared dependencies changes, the tracked `.githooks/pre-commit` hook emits a bounded deterministic repair prompt by default. Set `DOCGOV_ENABLE_MODEL=1` for the competition profile: a read-only Strands Repair Planner on Amazon Bedrock then gives each affected document an isolated graph node that can read only the document itself and changed files matching its declared dependencies. The graph emits bounded instructions and cited evidence paths, never writes. An absent, malformed, out-of-scope, or `needs_human` plan blocks the commit.
 
-The protocol is provider-neutral. `DOCGOV_REPAIR_COMMAND` may name any local coding-agent command that accepts a prompt on stdin and can edit the working tree. Codex is the default adapter; Claude, GitHub Copilot, a local model, or another agent can be selected without changing Doc Governor:
+`DOCGOV_REPAIR_COMMAND` sends the plan to any local coding-agent command that accepts a prompt on stdin and can edit the working tree. Codex is the default executor; Claude Code, GitHub Copilot, a local model, or another agent can be selected without changing Doc Governor. The hook then runs repository verification and stages the repaired documents. It never runs `baseline --approved`: tests prove the repository still works, not that every prose claim is true. A maintainer must review the diff and separately record the verification before MCP serves the document as trusted.
 
-**Codex, Claude, GitHub Copilot, or another coding agent writes the code; Doc Governor makes the configured agent repair required documents to a verifiable current state before commit.**
+**In the competition profile, Strands on Amazon Bedrock with Amazon Nova Lite decides the evidence-bounded repair; Codex executes it; deterministic Doc Governor code and maintainer approval decide whether the result is trusted.**
 
 ```sh
 git config core.hooksPath .githooks
 
-# Default: Codex
+# Optional competition profile: invoke Strands with Amazon Nova Lite on Bedrock
+export AWS_REGION=us-west-2
+export DOCGOV_ENABLE_MODEL=1
+
+# Default executor: Codex
 git commit -m "change implementation"
 
 # Any other stdin-capable coding agent
 DOCGOV_REPAIR_COMMAND='your-agent-command' git commit -m "change implementation"
 ```
 
-This path uses the developer's existing coding-agent account. It does not invoke Amazon Bedrock, request AWS credentials, or create AWS usage. Set `DOCGOV_SKIP_REPAIR=1` only for recovery; CI governance still detects an unverified required document.
+The competition profile requires AWS credentials with permission to invoke Amazon Nova Lite whenever a required document is impacted. The deterministic impact scan still costs zero model tokens; Bedrock is called only after that scan finds a repair candidate and only when `DOCGOV_ENABLE_MODEL=1`. Normal local commits use the developer's existing Codex account and make no Bedrock or Claude Code call. `DOCGOV_REPAIR_PLANNER_COMMAND` exists for offline tests. Set `DOCGOV_SKIP_REPAIR=1` only for recovery; CI governance still detects an unverified required document.
 
 **Why the recheck matters.** A developer commits code locally and `trust.json` is instantly older than `HEAD`. Without step 2 the server would serve stale content marked fresh. The recheck is pure hashing, so a document that was readable a second ago becomes unreadable the moment one of its declared dependencies changes — with no Doc Governor run in between.
 
 ## Quick start
 
-Requirements: Python 3.12+ and a GitHub repository. An AWS role that can invoke the selected Amazon Bedrock model through GitHub OIDC is needed only when semantic model checks are enabled. Strands supports Python 3.10+; the action uses Python 3.12 for a reproducible runtime. The default install contains only the deterministic engine; install the `bedrock` extra to enable Strands.
+Requirements: Python 3.12+ and a GitHub repository. AWS credentials are required only for the explicitly enabled competition profile. Strands supports Python 3.10+; the action uses Python 3.12 for a reproducible runtime. Install the `bedrock` extra to enable the PR governance graph and required-document Repair Planner.
 
 1. Add `.docgov/catalog.yaml` to your repository. `docgov init` can generate a proposal.
 2. Copy `.github/workflows/docgov-review.yml` from this repository. It checks out pull request content as data, enables write/OIDC access only for same-repository PRs, and runs fork PRs read-only. The essential action step is:
@@ -116,10 +113,10 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 ```
 
-`enable_model` defaults to `true`: the Strands agent graph is the headline configuration. Set it to `false` for the deterministic-only fallback, which is what fork pull requests and offline runs get automatically.
+`enable_model` defaults to `false`, so installing the action cannot create model charges by itself. The competition profile sets it to `true` explicitly; fork pull requests and offline runs remain deterministic-only.
 
 3. Read the repository's exact GitHub OIDC subject prefix with `gh api repos/OWNER/REPO/actions/oidc/customization/sub --jq .sub_claim_prefix`. In `infra/aws/github-oidc-trust-policy.json`, replace `<AWS_ACCOUNT_ID>` and `<GITHUB_SUB_CLAIM_PREFIX>` with the account ID and that complete prefix. This supports both name-based and immutable owner/repository-ID subjects; do not guess the subject from the repository name.
-4. Create a least-privilege AWS role with that trust policy and `infra/aws/bedrock-inference-policy.json`, replacing its account ID too, then set the role ARN as the repository variable `DOCGOV_AWS_ROLE_ARN`. The Bedrock policy permits only the selected US inference profile and its three documented destination-region foundation models. The workflow exchanges GitHub OIDC for short-lived credentials only on same-repository pull requests; forks remain deterministic and receive no AWS identity.
+4. Create a least-privilege AWS role with that trust policy and `infra/aws/bedrock-inference-policy.json`, replacing its account ID too. Set the role ARN as the repository variable `DOCGOV_AWS_ROLE_ARN`, then set `DOCGOV_ENABLE_MODEL=true` only on the competition repository. The Bedrock policy permits only the Amazon Nova Lite US inference profile and its three documented destination-region foundation models. The workflow exchanges GitHub OIDC for short-lived credentials only on same-repository pull requests with both variables configured; forks remain deterministic and receive no AWS identity.
 5. Run `docgov init` once and review the generated Catalog proposal.
 
 The OIDC subject lookup follows [GitHub's AWS guidance](https://docs.github.com/en/actions/how-tos/secure-your-work/security-harden-deployments/oidc-in-aws), including immutable repository subjects for newer repositories. The destination-model grants follow [Amazon Bedrock's geographic cross-Region IAM requirements](https://docs.aws.amazon.com/bedrock/latest/userguide/geographic-cross-region-inference.html). Governor responses use the current [Strands structured-output invocation](https://strandsagents.com/docs/user-guide/concepts/agents/structured-output/) and fail closed on validation or timeout errors.
@@ -195,9 +192,11 @@ A refusal always carries an alternative, because a bare error just sends the age
 - Startup fails loudly when `.docgov/trust.json` is missing or declares an unknown schema version. It never falls back to serving everything.
 - Content is read from disk at call time, never cached at startup, because the repository changes underneath a long-running server.
 
-## Three agents, each less privileged than the last
+## Four constrained roles across two Strands workflows
 
-The graph does not exist for parallelism. It exists so that no single agent holds enough privilege to do damage.
+The pre-commit Repair Planner handles the repetitive work: deciding how an affected required document should change. It runs one isolated, read-only planning node per document, cites only changed files that match the document's declared dependencies, and hands bounded instructions to the developer's configured coding agent. It never writes or approves the result.
+
+The separate semantic governance graph uses three more roles. That graph does not exist for parallelism; it exists so that no single agent holds enough privilege to do damage.
 
 | Agent | Sees | Tools | Structurally cannot |
 | --- | --- | --- | --- |
@@ -328,7 +327,7 @@ The strict scan considers only Git-tracked Markdown. Generated output, dependenc
 - `.docgov/ledger.jsonl`: append-only verification and mutation ledger.
 - `.docgov/trust.json`: the committed, deterministic trust table the MCP server reads.
 - `docgov/trust_state.py`: builds that table. `docgov/mcp_server.py`: serves it.
-- `docgov/agents.py`: the three-agent Strands graph. `docgov/drafting.py`: grounding validation for proposed prose.
+- `docgov/repair_agents.py`: the read-only Strands Repair Planner. `docgov/agents.py`: the three-agent semantic governance graph. `docgov/drafting.py`: grounding validation for proposed prose.
 - `docgov/`: the CLI, deterministic governance engine, GitHub reporter, and Supabase adapter.
 - `examples/supabase-demo/`: a small fixture that demonstrates Edge Function and status-document drift.
 - `.github/workflows/`: pull request, daily audit, and initial Catalog proposal workflows.
@@ -339,6 +338,13 @@ Supabase Markdown may include a machine-readable marker such as `<!-- docgov:sup
 
 ```mermaid
 flowchart LR
+  subgraph REPAIR["Commit-time repair path"]
+    C0["git commit"] --> I["Deterministic impact scan<br/>zero model tokens"]
+    I --> RP["Strands Repair Planner<br/>Amazon Nova Lite"]
+    RP --> CE["Configured coding agent<br/>Codex by default"]
+    CE --> V["Tests + deterministic verification"]
+    V --> ST["Stage repaired documents<br/>await maintainer approval"]
+  end
   subgraph WRITE["Write path — pull request or daily audit"]
     A["GitHub PR or daily schedule"] --> B["Deterministic scan"]
     S["Supabase Advisor GET (read-only)"] -->|"redacted immutable evidence"| B
@@ -355,7 +361,7 @@ flowchart LR
     E --> H[".docgov/ledger.jsonl"]
   end
   subgraph READ["Read path — every agent read"]
-    X["Codex / Claude Code / Cursor"] -->|"MCP get_document"| M["docgov-mcp"]
+    X["Coding agent"] -->|"MCP get_document"| M["docgov-mcp"]
     TJ --> M
     M --> RC{"fingerprint still matches?"}
     RC -->|"yes"| OK["return content"]

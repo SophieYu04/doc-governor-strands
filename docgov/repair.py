@@ -1,10 +1,11 @@
 from __future__ import annotations
 
-from typing import List
+from typing import List, Optional
 
 from .engine import RepositorySnapshot, changed_dependency_evidence
 from .models import DocumentRecord
 from .patterns import matches_repo_glob
+from .repair_agents import RepairRunner, run_repair_graph
 
 
 def repair_candidates(snapshot: RepositorySnapshot) -> List[DocumentRecord]:
@@ -25,24 +26,55 @@ def repair_candidates(snapshot: RepositorySnapshot) -> List[DocumentRecord]:
     ]
 
 
-def build_repair_prompt(snapshot: RepositorySnapshot) -> str:
+def build_repair_prompt(
+    snapshot: RepositorySnapshot,
+    *,
+    enable_model: bool = False,
+    model_id: Optional[str] = None,
+    runner: Optional[RepairRunner] = None,
+) -> str:
     candidates = repair_candidates(snapshot)
     if not candidates:
         return ""
+    planned = []
+    if enable_model:
+        planned, _trace = run_repair_graph(
+            snapshot,
+            candidates,
+            model_id=model_id,
+            runner=runner,
+        )
+    plans_by_path = {item.path: item for item in planned}
     sections: List[str] = []
     for record in candidates:
         changed = changed_dependency_evidence(snapshot, record)
         sources = "\n".join(f"- {item.path}" for item in changed) or "- none"
+        plan = plans_by_path.get(record.path)
+        strands_plan = ""
+        if plan is not None:
+            instructions = "\n".join(f"- {item}" for item in plan.instructions)
+            evidence = "\n".join(f"- {item}" for item in plan.evidence_paths)
+            strands_plan = (
+                f"\nStrands repair instructions:\n{instructions}\n"
+                f"Strands evidence paths:\n{evidence}\n"
+                f"Strands reasoning: {plan.reason}\n"
+            )
         sections.append(
             f"Document: {record.path}\n"
             f"Type: {record.type}\n"
             f"Declared dependencies: {', '.join(record.depends_on)}\n"
             f"Changed evidence:\n{sources}"
+            f"{strands_plan}"
         )
     documents = "\n\n".join(sections)
+    planner = (
+        "Amazon Bedrock and a read-only Strands graph produced the bounded repair plan below. "
+        if enable_model
+        else ""
+    )
     return f"""You are the repository's coding agent. Repair required documentation before this commit.
 
-Inspect the staged code diff and the declared source dependencies below. Update each listed document so its factual claims match the implementation in the working tree. Preserve valid human-authored guidance and edit only what the source change makes inaccurate or incomplete. Do not claim deployment, testing, approval, or verification unless repository evidence proves it. Do not change dates merely to make a document look current. Do not commit.
+{planner}Inspect the staged code diff and the declared source dependencies below. Follow the Strands repair instructions when present. Update each listed document so its factual claims match the implementation in the working tree. Preserve valid human-authored guidance and edit only what the source change makes inaccurate or incomplete. Do not claim deployment, testing, approval, or verification unless repository evidence proves it. Do not change dates merely to make a document look current. Do not commit.
 
 Required documents:
 

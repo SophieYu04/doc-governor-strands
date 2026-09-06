@@ -41,13 +41,11 @@ inputs:
   enable_model:
     description: Enable the Strands multi-agent Governor graph on Amazon Bedrock
     required: false
-    # The graph is the headline configuration; the deterministic-only path is the
-    # documented fallback for fork pull requests and offline runs.
-    default: "true"
+    default: "false"
   model_id:
     description: Amazon Bedrock model or inference profile ID
     required: false
-    default: us.anthropic.claude-sonnet-4-20250514-v1:0
+    default: us.amazon.nova-lite-v1:0
   aws_region:
     description: AWS region used by Bedrock
     required: false

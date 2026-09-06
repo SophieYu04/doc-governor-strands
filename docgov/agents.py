@@ -46,7 +46,7 @@ from .models import DocumentRecord, Evidence, Finding, GovernanceDecision
 from .patterns import matches_repo_glob
 
 
-DEFAULT_MODEL_ID = "us.anthropic.claude-sonnet-4-20250514-v1:0"
+DEFAULT_MODEL_ID = "us.amazon.nova-lite-v1:0"
 DEFAULT_GRAPH_TIMEOUT_SECONDS = 240.0
 DEFAULT_NODE_TIMEOUT_SECONDS = 90.0
 MAX_AUDIT_DOCUMENTS = 8

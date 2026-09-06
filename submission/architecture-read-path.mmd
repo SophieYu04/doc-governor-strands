@@ -1,5 +1,5 @@
 flowchart LR
-  X["AI coding agent<br/><small>Codex · Claude Code · Cursor</small>"] ==>|"get_document('docs/architecture/API.md')"| M
+  X["AI coding agent<br/><small>provider-neutral MCP client</small>"] ==>|"get_document('docs/architecture/API.md')"| M
   T[".docgov/trust.json<br/><small>deterministic trust table,<br/>committed to the repository</small>"] ==> M["docgov-mcp<br/><small>read-only MCP server</small>"]
   M ==> Q{"Recompute the SHA-256 fingerprint of the<br/>document's declared dependencies NOW.<br/>Does it still match?"}
   Q ==>|"yes"| OK["Return the content"]

@@ -24,20 +24,20 @@ jobs:
           fetch-depth: 0
           persist-credentials: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
       - name: Exchange GitHub OIDC token for the Bedrock role
-        if: github.event.pull_request.head.repo.full_name == github.repository && vars.DOCGOV_AWS_ROLE_ARN != ''
+        if: github.event.pull_request.head.repo.full_name == github.repository && vars.DOCGOV_AWS_ROLE_ARN != '' && vars.DOCGOV_ENABLE_MODEL == 'true'
         uses: aws-actions/configure-aws-credentials@61815dcd50bd041e203e49132bacad1fd04d2708 # v5.1.1
         with:
           role-to-assume: ${{ vars.DOCGOV_AWS_ROLE_ARN }}
           aws-region: us-west-2
       - name: Run Doc Governor
-        uses: SophieYu04/doc-governor@v0.2.7
+        uses: ./
         with:
           mode: review
           base_sha: ${{ github.event.pull_request.base.sha }}
           head_sha: ${{ github.event.pull_request.head.sha }}
           apply: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
           approved: ${{ github.event.action == 'labeled' && github.event.label.name == 'docgov-approved' }}
-          enable_model: ${{ github.event.pull_request.head.repo.full_name == github.repository && vars.DOCGOV_AWS_ROLE_ARN != '' }}
+          enable_model: ${{ github.event.pull_request.head.repo.full_name == github.repository && vars.DOCGOV_AWS_ROLE_ARN != '' && vars.DOCGOV_ENABLE_MODEL == 'true' }}
           aws_region: us-west-2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

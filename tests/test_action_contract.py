@@ -32,15 +32,18 @@ class ActionContractTests(unittest.TestCase):
         self.assertIn("supabase_projects", action["inputs"])
         self.assertIn("supabase_evidence_dir", action["inputs"])
         self.assertIn('--supabase-projects "$DOCGOV_SUPABASE_PROJECTS"', source)
+        self.assertEqual(action["inputs"]["enable_model"]["default"], "false")
+        self.assertEqual(action["inputs"]["model_id"]["default"], "us.amazon.nova-lite-v1:0")
 
     def test_workflows_pin_actions_and_never_use_pull_request_target(self) -> None:
         workflow_sources = [path.read_text(encoding="utf-8") for path in (ROOT / ".github/workflows").glob("*.yml")]
         combined = "\n".join(workflow_sources)
         self.assertNotIn("pull_request_target", combined)
         for use in re.findall(r"uses:\s*([^\s#]+)", combined + "\n" + (ROOT / "action.yml").read_text(encoding="utf-8")):
-            if use.startswith("SophieYu04/doc-governor@"):
+            if use == "./":
                 continue
             self.assertRegex(use, r"^[^@]+@[0-9a-f]{40}$")
+        self.assertEqual(combined.count("uses: ./"), 4)
 
     def test_fork_model_and_oidc_steps_are_same_repository_only(self) -> None:
         source = (ROOT / ".github/workflows/docgov-review.yml").read_text(encoding="utf-8")
@@ -48,6 +51,7 @@ class ActionContractTests(unittest.TestCase):
         self.assertGreaterEqual(source.count(same_repo), 2)
         self.assertIn(f"persist-credentials: ${{{{ {same_repo} }}}}", source)
         self.assertIn("vars.DOCGOV_AWS_ROLE_ARN != ''", source)
+        self.assertIn("vars.DOCGOV_ENABLE_MODEL == 'true'", source)
         self.assertIn("id-token: write", source)
 
     def test_daily_audit_branches_from_the_checked_out_commit(self) -> None:
@@ -70,16 +74,18 @@ class ActionContractTests(unittest.TestCase):
         self.assertNotIn("git add .", source)
         self.assertIn('gh pr create --base main', source)
 
-    def test_pre_commit_repair_hook_is_provider_neutral_and_verifies_before_baseline(self) -> None:
+    def test_pre_commit_repair_hook_makes_strands_explicit_and_never_self_approves(self) -> None:
         source = (ROOT / ".githooks/pre-commit").read_text(encoding="utf-8")
+        self.assertIn("DOCGOV_REPAIR_PLANNER_COMMAND", source)
         self.assertIn("DOCGOV_REPAIR_COMMAND", source)
         self.assertIn("codex exec --approve-for-me --sandbox workspace-write", source)
-        self.assertNotIn("AWS", source)
-        self.assertNotIn("Bedrock", source)
-        self.assertLess(source.index('sh -c "$verify_command"'), source.index("baseline --approved"))
-        self.assertIn("git add -- \"$@\" .docgov/ledger.jsonl .docgov/trust.json", source)
+        self.assertIn("DOCGOV_ENABLE_MODEL", source)
+        self.assertIn('model_flag=" --enable-model"', source)
+        self.assertNotIn("repair-prompt --enable-model", source)
+        self.assertNotIn("baseline --approved", source)
+        self.assertNotIn(".docgov/ledger.jsonl .docgov/trust.json", source)
 
-    def test_pre_commit_hook_repairs_stages_and_baselines_required_document(self) -> None:
+    def test_pre_commit_hook_repairs_and_stages_without_approving_document(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             subprocess.run(["git", "init", "-q"], cwd=root, check=True)
@@ -118,9 +124,17 @@ class ActionContractTests(unittest.TestCase):
                 encoding="utf-8",
             )
             agent.chmod(0o755)
+            planner = root / "fake-planner"
+            planner.write_text(
+                "#!/bin/sh\n"
+                "printf '%s\\n' '{\"documents\":[\"AGENTS.md\"],\"prompt\":\"repair AGENTS.md\",\"required\":true}'\n",
+                encoding="utf-8",
+            )
+            planner.chmod(0o755)
             (root / "src/interface.py").write_text("VERSION = 2\n", encoding="utf-8")
             subprocess.run(["git", "add", "src/interface.py"], cwd=root, check=True)
             env = os.environ.copy()
+            env["DOCGOV_REPAIR_PLANNER_COMMAND"] = str(planner)
             env["DOCGOV_REPAIR_COMMAND"] = str(agent)
             env["DOCGOV_VERIFY_COMMAND"] = "true"
             env["PATH"] = f"{Path(sys.executable).parent}:{env.get('PATH', '')}"
@@ -139,8 +153,8 @@ class ActionContractTests(unittest.TestCase):
                 ["git", "diff", "--cached", "--name-only"], cwd=root, text=True
             ).splitlines()
             self.assertIn("AGENTS.md", staged)
-            self.assertIn(".docgov/ledger.jsonl", staged)
-            self.assertIn(".docgov/trust.json", staged)
+            self.assertNotIn(".docgov/ledger.jsonl", staged)
+            self.assertNotIn(".docgov/trust.json", staged)
             self.assertIn("Interface version 2.", (root / "AGENTS.md").read_text(encoding="utf-8"))
 
     def test_aws_templates_are_repository_scoped_and_cover_profile_destinations(self) -> None:
@@ -151,7 +165,7 @@ class ActionContractTests(unittest.TestCase):
         self.assertIn('"bedrock:InferenceProfileArn"', policy)
         for region in ("us-east-1", "us-east-2", "us-west-2"):
             self.assertIn(
-                f"arn:aws:bedrock:{region}::foundation-model/anthropic.claude-sonnet-4-20250514-v1:0",
+                f"arn:aws:bedrock:{region}::foundation-model/amazon.nova-lite-v1:0",
                 policy,
             )
 
