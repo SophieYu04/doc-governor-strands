@@ -67,9 +67,13 @@ class TrustEntry:
     source_pointers: List[str] = field(default_factory=list)
     verified_at: Optional[str] = None
     head_sha: Optional[str] = None
+    verifier: Optional[str] = None
 
     def to_dict(self) -> Dict[str, Any]:
-        return asdict(self)
+        value = asdict(self)
+        if self.verifier is None:
+            value.pop("verifier")
+        return value
 
     @classmethod
     def from_dict(cls, value: Dict[str, Any]) -> "TrustEntry":
@@ -87,6 +91,7 @@ class TrustEntry:
             source_pointers=[str(item) for item in value.get("source_pointers", [])],
             verified_at=(str(value["verified_at"]) if value.get("verified_at") else None),
             head_sha=(str(value["head_sha"]) if value.get("head_sha") else None),
+            verifier=(str(value["verifier"]) if value.get("verifier") else None),
         )
 
 
@@ -348,6 +353,7 @@ def build_trust_state(
                 # tree always serializes to identical bytes.
                 verified_at=(str(baseline.get("timestamp")) if baseline and baseline.get("timestamp") else None),
                 head_sha=(str(baseline.get("head_sha")) if baseline and baseline.get("head_sha") else None),
+                verifier=(str(baseline["verifier"]) if baseline and str(baseline.get("verifier", "")).startswith("codex:") else None),
             ).to_dict()
         )
 

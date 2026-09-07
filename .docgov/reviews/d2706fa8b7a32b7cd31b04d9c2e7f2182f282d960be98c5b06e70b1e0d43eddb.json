@@ -1,0 +1,68 @@
+{
+  "documents": [
+    {
+      "dependency_fingerprint": "fe1f2c8f526c638ed62038ba03e5b473b23492c565109e0d42563d4425775bdb",
+      "path": "README.md",
+      "sha256": "98e6d72a01ccfd0b68892dc45c05c7be6e3a4c0dded7d37d3485898de2ccb57b",
+      "verdict": "trusted"
+    }
+  ],
+  "evidence": [
+    {
+      "path": ".github/workflows/docgov-audit.yml",
+      "sha256": "ff7d2034eab6032bb4c66a4e704aa19a92d195f66d44c76827b25b6f8a79e43c"
+    },
+    {
+      "path": ".github/workflows/docgov-review.yml",
+      "sha256": "06518c23b0119f5397c2835ee2b9b922cdd890be2f2efef025dd9c46c90e6754"
+    },
+    {
+      "path": ".github/workflows/docgov-source-reconcile.yml",
+      "sha256": "6330989a53638d16ddbe93ffa922057bc4cdd6a9daf6423947af457f2d208948"
+    },
+    {
+      "path": "action.yml",
+      "sha256": "d3545c2dedca7ab27736d747dac17369e3928603f90b670ad37667d9b2cd6b81"
+    },
+    {
+      "path": "docgov/coding_review.py",
+      "sha256": "6b20d5376cca90c93243b94b8773f6266ed3c181c7ca3981eb4d6e13ff2b8b2b"
+    },
+    {
+      "path": "docgov/engine.py",
+      "sha256": "28c94bb8661e9ae4168850de24dd0c323223aca77e9c45e825d0f4d3d3d12027"
+    },
+    {
+      "path": "docgov/mcp_server.py",
+      "sha256": "f57af6014b71df22e18ddc5e9a6e6f0460517f471c547d1500c093104ee791dd"
+    },
+    {
+      "path": "docgov/trust_state.py",
+      "sha256": "b1db549fb1f01e160b0bf45b3e04efb5bb7d2b1d5046a3aa59ae62ecd4ec4134"
+    },
+    {
+      "path": "pyproject.toml",
+      "sha256": "59b2d91596ab84681c176381ba969104423361da81616c35d7ec5eb76322990d"
+    },
+    {
+      "path": "tests/test_coding_review.py",
+      "sha256": "f82c5dd7615b7984171fc551366f76c5e76c15e3ae00b82eb32f928673e905cd"
+    },
+    {
+      "path": "tests/test_mcp_server.py",
+      "sha256": "b5cecde96ace2ad1243c030b88f1474fe73554e1175c313ec59c4eadffa81ec0"
+    },
+    {
+      "path": "tests/test_trust_state.py",
+      "sha256": "170d9bf5fffc28a8157dcdfbce92ca4d33d3f8d0a44da3f8b71c408c4d2a843b"
+    }
+  ],
+  "model_executed": true,
+  "reviewer": "codex:01a07cad-1786-7c20-bd73-d81e9e589a57",
+  "snapshot_id": "d2706fa8b7a32b7cd31b04d9c2e7f2182f282d960be98c5b06e70b1e0d43eddb",
+  "source_head": "8daea2b1c0d6520c2701537a0d563d056218ebb7",
+  "source_index_tree": "7d39e40638cae653726e988c5c374169a15e31e4",
+  "verifier_command": "/Users/sophie/Documents/snap/.codex-worktrees/docgov-strands-runtime/bin/python -m unittest discover -v",
+  "verifier_output_sha256": "46e767f48e255b54dd49e8762d443b36d3db4b04c019681ca0e4b5105f7d6a26",
+  "version": 1
+}

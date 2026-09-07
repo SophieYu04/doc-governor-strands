@@ -361,6 +361,47 @@ def _status_scope(record: DocumentRecord) -> Tuple[str, str]:
     return "untrusted", f"Catalog status is {record.status!r}, not current."
 
 
+def has_matching_coding_review(snapshot: RepositorySnapshot, record: DocumentRecord) -> bool:
+    """Recognize only a scoped, hash-bound delegated review, never blanket approval."""
+    if not has_matching_verification_baseline(snapshot, record):
+        return False
+    try:
+        def read(path):
+            if snapshot.source_ref:
+                return content_at_ref(snapshot.root, snapshot.source_ref, path)
+            target = snapshot.root.resolve() / path
+            if target.is_symlink() or any(p.is_symlink() for p in target.parents if p.is_relative_to(snapshot.root.resolve())):
+                raise ValueError("symlink")
+            return target.read_text()
+        policy = json.loads(read(".docgov/coding-agent-review-policy.json"))
+        if (policy.get("version") != 1 or policy.get("reviewer") != "coding_agent"
+                or policy.get("status") not in {"authorized_review_pending", "enabled"}
+                or record.path not in policy.get("documents", []) or record.type != "contract"):
+            return False
+        entries = snapshot.source_ledger_entries if snapshot.source_ledger_entries is not None else Ledger(snapshot.root / snapshot.ledger_path).entries()
+        baseline = next(entry for entry in reversed(entries)
+                        if entry.get("document") == record.path and entry.get("action") == "verify_current")
+        if not str(baseline.get("verifier", "")).startswith("codex:"):
+            return False
+        evidence = [item for item in baseline.get("evidence", []) if item.get("kind") == "coding_agent_review"]
+        if len(evidence) != 1:
+            return False
+        path = evidence[0]["path"]
+        if not re.fullmatch(r"\.docgov/reviews/[a-f0-9]{64}\.json", path):
+            return False
+        raw = read(path)
+        if sha256_text(raw) != evidence[0].get("sha256"):
+            return False
+        receipt = json.loads(raw)
+        if receipt.get("model_executed") is not True or receipt.get("reviewer") != baseline.get("verifier"):
+            return False
+        return any(item.get("path") == record.path and item.get("sha256") == baseline.get("new_hash")
+                   and item.get("dependency_fingerprint") == baseline.get("dependency_fingerprint")
+                   and item.get("verdict") == "trusted" for item in receipt.get("documents", []))
+    except (OSError, ValueError, TypeError, KeyError, StopIteration):
+        return False
+
+
 def analyze_trust(
     snapshot: RepositorySnapshot,
     ledger_path: Path,
@@ -440,6 +481,11 @@ def analyze_trust(
             findings.append(Finding("stale", "high", "block", [normalized], reason, summarized))
             continue
         if baseline is not None:
+            if str(baseline.get("verifier", "")).startswith("codex:") and not has_matching_coding_review(snapshot, record):
+                reason = "Coding-agent review is missing, revoked, or no longer matches the document and sources."
+                trust_results.append(TrustResult(normalized, record.type, record.status, "untrusted", reason, summarized))
+                findings.append(Finding("stale", "high", "block", [normalized], reason, summarized))
+                continue
             current_hash = sha256_text(snapshot.files[normalized])
             current_fingerprint = dependency_fingerprint(dependencies)
             if baseline.get("new_hash") != current_hash:
@@ -637,7 +683,9 @@ def analyze(snapshot: RepositorySnapshot, mode: str = "review", run_id: Optional
                 reason="Evidence documents are immutable after creation and cannot be overwritten by a pull request.",
                 human_decision="Create a new dated evidence file and leave the existing evidence unchanged.",
             ))
-        if path not in snapshot.added and snapshot.catalog.is_protected(path):
+        if (path not in snapshot.added and snapshot.catalog.is_protected(path)
+                and not (snapshot.catalog.record_for(path)
+                         and has_matching_coding_review(snapshot, snapshot.catalog.record_for(path)))):
             findings.append(Finding(
                 kind="conflict",
                 risk="high",

@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "reviewer": "coding_agent",
+  "status": "disabled",
+  "authorization": "Template only: an owner must explicitly delegate review before enabling this policy.",
+  "documents": [
+    "docs/architecture/API.md"
+  ],
+  "requirements": [
+    "Independent read-only coding-agent review after a passing repository verifier",
+    "Exact document and declared-source hashes must still match"
+  ],
+  "exclusions": [
+    "Release and production state are not delegated"
+  ]
+}

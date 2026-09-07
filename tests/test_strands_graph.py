@@ -111,6 +111,13 @@ class StubModel(Model):  # type: ignore[misc,valid-type]
             yield {"contentBlockStop": {}}
             yield {"messageStop": {"stopReason": "tool_use"}}
             return
+        if any(spec.get("name") == "GovernanceOutput" for spec in (tool_specs or [])):
+            yield {"messageStart": {"role": "assistant"}}
+            yield {"contentBlockStart": {"start": {"toolUse": {"name": "GovernanceOutput", "toolUseId": "output"}}}}
+            yield {"contentBlockDelta": {"delta": {"toolUse": {"input": self._answer_for(system_prompt)}}}}
+            yield {"contentBlockStop": {}}
+            yield {"messageStop": {"stopReason": "tool_use"}}
+            return
         yield {"messageStart": {"role": "assistant"}}
         yield {"contentBlockDelta": {"delta": {"text": self._answer_for(system_prompt)}}}
         yield {"contentBlockStop": {}}
@@ -172,6 +179,23 @@ class StrandsGraphSmokeTests(unittest.TestCase):
             runner = strands_runner(self.snapshot, model_id="stub-model")
             return runner(plan_graph(self.snapshot, self.baseline))
 
+    def test_private_reasoning_text_is_discarded_before_interpreting_verdicts(self):
+        class ThinkingModel(StubModel):
+            async def stream(self, *args, **kwargs):
+                async for event in super().stream(*args, **kwargs):
+                    start = event.get("contentBlockStart", {}).get("start", {}).get("toolUse", {})
+                    if start.get("name") == "GovernanceOutput":
+                        yield {"contentBlockDelta": {"delta": {"text": "<thinking>PRIVATE { not valid JSON</thinking>"}}}
+                        yield {"contentBlockStop": {}}
+                    yield event
+        self.model = ThinkingModel(self.model.answers)
+        responses, trace = self.run_real_graph()
+        self.assertTrue(responses)
+        for value in responses.values():
+            json.loads(value)
+            self.assertNotIn("PRIVATE", value)
+        self.assertNotIn("PRIVATE", json.dumps(trace))
+
     def test_the_real_graph_builds_executes_and_returns_node_answers(self) -> None:
         plan = plan_graph(self.snapshot, self.baseline)
         self.assertTrue(plan.audits, "the fixture must give the graph something to audit")
@@ -227,3 +251,45 @@ class StrandsGraphSmokeTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class StructuredOutputBoundaryTests(unittest.TestCase):
+    def test_final_output_budget_does_not_expand_read_access(self):
+        from types import SimpleNamespace
+        from docgov.agents import _ToolBudget, EVIDENCE_AUDITOR
+        trace = []
+        budget = _ToolBudget(EVIDENCE_AUDITOR, "audit", trace)
+        for _ in range(EVIDENCE_AUDITOR.max_tool_calls):
+            budget._before_tool_call(SimpleNamespace(tool_use={"name": "evidence_for_document"}, cancel_tool=None))
+        for name in ("evidence_for_document", "write_document"):
+            event = SimpleNamespace(tool_use={"name": name}, cancel_tool=None)
+            budget._before_tool_call(event)
+            self.assertIsNotNone(event.cancel_tool)
+        for _ in range(3):
+            event = SimpleNamespace(tool_use={"name": "GovernanceOutput"}, cancel_tool=None)
+            budget._before_tool_call(event)
+            self.assertIsNone(event.cancel_tool)
+        event = SimpleNamespace(tool_use={"name": "GovernanceOutput"}, cancel_tool=None)
+        budget._before_tool_call(event)
+        self.assertIsNotNone(event.cancel_tool)
+
+    def test_structured_output_takes_precedence_over_untrusted_prose(self):
+        from types import SimpleNamespace
+        from docgov.agents import _result_text
+        value = SimpleNamespace(structured_output=SimpleNamespace(model_dump_json=lambda: '{"supported":false}'),
+                                message={"content": [{"text": "malformed { prose"}]})
+        self.assertEqual(_result_text(value), '{"supported":false}')
+
+
+@unittest.skipUnless(STRANDS_AVAILABLE, "Strands is not installed")
+class ModelStreamRetryTests(unittest.TestCase):
+    def test_only_transient_stream_failure_is_retryable_and_attempts_are_bounded(self):
+        from docgov.agents import _model_retry_strategy
+        class ResponseError(Exception):
+            def __init__(self, code):
+                self.response = {"Error": {"Code": code}}
+        retry = _model_retry_strategy()
+        self.assertEqual(retry._max_attempts, 2)
+        self.assertTrue(retry.is_retryable(ResponseError("modelStreamErrorException")))
+        self.assertFalse(retry.is_retryable(ResponseError("AccessDeniedException")))
+        self.assertFalse(retry.is_retryable(ValueError("invalid model plan")))

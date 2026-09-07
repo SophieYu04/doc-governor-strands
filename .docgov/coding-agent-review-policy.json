@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "authorization": "Sophie delegates final document trust review to a coding agent",
+  "reviewer": "coding_agent",
+  "documents": [
+    "README.md"
+  ],
+  "requirements": [
+    "Review exact document bytes against current authoritative sources, relevant passing tests, and deployment evidence for deployment claims.",
+    "Use a separate review pass from prose repair; the repair planner or executor success is not approval.",
+    "Record reviewer identity, document hash, source revision, dependency fingerprint, evidence references and verdict.",
+    "Insufficient or conflicting evidence must retain untrusted status.",
+    "Recheck document and source fingerprints before recording trust."
+  ],
+  "exclusions": [
+    "No blanket approval of other documents",
+    "No approval of release readiness",
+    "No approval based on timestamps or previous agent conclusions"
+  ],
+  "status": "enabled",
+  "automatic_enforcement": true
+}

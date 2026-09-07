@@ -22,6 +22,7 @@ from .agents import (
 )
 from .engine import RepositorySnapshot, analyze
 from .models import GovernanceDecision
+from .model_errors import model_error_code
 
 
 # Preserved under its original private name: the invariant it encodes (model
@@ -50,7 +51,9 @@ def govern(
     if not enable_model:
         return baseline
     try:
-        return run_graph(snapshot, baseline, model_id=model_id, runner=runner)
+        decision = run_graph(snapshot, baseline, model_id=model_id, runner=runner)
+        decision.model_requested = True
+        return decision
     except Exception as exc:
         # Fail closed: keep every deterministic finding, add nothing, mutate nothing.
         return GovernanceDecision(
@@ -60,6 +63,7 @@ def govern(
             changed=False,
             findings=baseline.findings,
             head_sha=baseline.head_sha,
-            model_used=True,
-            error=f"Strands graph failed closed: {exc}",
+            model_used=False,
+            model_requested=True,
+            error=f"Strands graph failed closed: {model_error_code(exc)}",
         )

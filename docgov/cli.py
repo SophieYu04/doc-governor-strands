@@ -16,6 +16,9 @@ from .ledger import utc_now
 from .models import DocumentRecord, GovernanceDecision
 from .repair import build_repair_prompt, repair_candidates
 from .repair_agents import RepairPlanError
+from .repair_executor import repair_staged
+from .coding_review import review_documents
+from .model_errors import model_error_code
 from .supabase_remote import (
     DEFAULT_EVIDENCE_DIR,
     PROMOTION_ACTION,
@@ -370,12 +373,41 @@ def main(argv: List[str] | None = None) -> int:
     )
     repair_parser.add_argument("--model-id", default=os.environ.get("DOCGOV_MODEL_ID"))
 
+    execute_repair = subparsers.add_parser("repair", help="Repair staged documents in an isolated workspace")
+    execute_repair.add_argument("--json", action="store_true", dest="sub_json")
+    execute_repair.add_argument("--enable-model", action="store_true", default=os.environ.get("DOCGOV_ENABLE_MODEL", "").lower() in {"1", "true", "yes"})
+    execute_repair.add_argument("--model-id", default=os.environ.get("DOCGOV_MODEL_ID"))
+    execute_repair.add_argument("--executor-command", default=None)
+    execute_repair.add_argument("--verify-command", default=None)
+
+    coding_review = subparsers.add_parser("coding-review", help="Independently review owner-delegated document trust with Codex")
+    coding_review.add_argument("paths", nargs="+")
+    coding_review.add_argument("--verify-command", required=True)
+    coding_review.add_argument("--timeout", type=int, default=900)
+    coding_review.add_argument("--json", action="store_true", dest="sub_json")
+
     args = parser.parse_args(argv)
     args.as_json = bool(args.as_json or getattr(args, "sub_json", False))
     root = Path(args.root).resolve()
     catalog_path = _catalog_path(root, args.catalog)
     ledger_path = _ledger_path(root, args.ledger)
     trust_state_path = _trust_state_path(root, args.trust_state)
+
+    if args.command == "coding-review":
+        if args.catalog or args.ledger or args.trust_state:
+            parser.error("coding-review uses the repository's standard .docgov paths")
+        decision = review_documents(root, args.paths, verify_command=args.verify_command, timeout=args.timeout)
+        if decision.changed:
+            decision = _refresh_trust_state(root, catalog_path, ledger_path, trust_state_path, decision)
+        _print(decision, args.as_json)
+        return _exit_code(decision)
+
+    if args.command == "repair":
+        value = repair_staged(root, catalog=catalog_path.relative_to(root).as_posix(),
+                              enable_model=args.enable_model, model_id=args.model_id,
+                              executor_command=args.executor_command, verify_command=args.verify_command)
+        print(json.dumps(value, ensure_ascii=False, sort_keys=True))
+        return 2 if value["result"] == "blocked" else 0
 
     if args.command == "drift":
         try:
@@ -470,28 +502,34 @@ def main(argv: List[str] | None = None) -> int:
         _print(decision, args.as_json)
         return _exit_code(decision)
     if args.command == "repair-prompt":
+        trace: list[dict[str, str]] = []
         try:
             prompt = build_repair_prompt(
                 snapshot,
                 enable_model=args.enable_model,
                 model_id=args.model_id,
+                trace=trace,
             )
         except (RepairPlanError, AgentContractError, OSError, RuntimeError) as exc:
             if args.as_json:
                 print(json.dumps({
                     "documents": [record.path for record in repair_candidates(snapshot)],
-                    "error": f"Strands repair planning failed closed: {exc}",
-                    "model_used": bool(args.enable_model),
+                    "error": f"Strands repair planning failed closed: {model_error_code(exc)}",
+                    "model_requested": bool(args.enable_model),
+                    "model_used": any(event.get("event") == "agent_complete" for event in trace),
+                    "model_trace": trace,
                     "required": True,
                     "result": "blocked",
                 }, ensure_ascii=False))
             else:
-                print(f"Strands repair planning failed closed: {exc}", file=sys.stderr)
+                print(f"Strands repair planning failed closed: {model_error_code(exc)}", file=sys.stderr)
             return 2
         if args.as_json:
             print(json.dumps({
                 "documents": [record.path for record in repair_candidates(snapshot)],
-                "model_used": bool(args.enable_model and prompt),
+                "model_requested": bool(args.enable_model),
+                "model_used": any(event.get("event") == "agent_complete" for event in trace),
+                "model_trace": trace,
                 "planner": "strands" if args.enable_model and prompt else "deterministic",
                 "prompt": prompt,
                 "required": bool(prompt),

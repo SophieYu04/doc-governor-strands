@@ -65,9 +65,9 @@ class PrivilegeSeparationTests(unittest.TestCase):
                         self.assertNotIn(token, name.lower())
 
     def test_each_agent_declares_exactly_the_tool_scope_the_spec_gives_it(self) -> None:
-        self.assertEqual(EVIDENCE_AUDITOR.tool_names, ("evidence_for_document",))
-        self.assertEqual(CONFLICT_RESOLVER.tool_names, ("declared_source",))
-        self.assertEqual(CONTRACT_DRAFTER.tool_names, ("target_document", "declared_source"))
+        self.assertEqual(EVIDENCE_AUDITOR.tool_names, ("evidence_for_document", "GovernanceOutput"))
+        self.assertEqual(CONFLICT_RESOLVER.tool_names, ("declared_source", "GovernanceOutput"))
+        self.assertEqual(CONTRACT_DRAFTER.tool_names, ("target_document", "declared_source", "GovernanceOutput"))
 
     def test_an_auditor_that_could_reach_a_write_tool_is_a_failure(self) -> None:
         rogue = EVIDENCE_AUDITOR.__class__(
@@ -634,11 +634,11 @@ class ConfinementTests(unittest.TestCase):
             [{"event": "tool_call", "name": "evidence_auditor__0:evidence_for_document"}],
         )
 
-    def test_an_empty_plan_still_reports_the_model_as_used(self) -> None:
+    def test_an_empty_plan_does_not_report_the_model_as_used(self) -> None:
         snapshot = RepositorySnapshot(root=Path("."), catalog=Catalog.default())
         baseline = GovernanceDecision("run", "review", "pass", False)
         decision = run_graph(snapshot, baseline, model_id="test-model")
-        self.assertTrue(decision.model_used)
+        self.assertFalse(decision.model_used)
         self.assertEqual(decision.result, "pass")
 
 
