@@ -857,6 +857,17 @@ def _node_prompt(spec: AgentSpec, body: str) -> str:
     return f"{spec.system_prompt}\n\n--- YOUR ASSIGNMENT ---\n{body}"
 
 
+def _model_retry_strategy() -> Any:
+    from strands import ModelRetryStrategy
+
+    class BoundedStreamRetry(ModelRetryStrategy):
+        def is_retryable(self, exception: Exception) -> bool:
+            code = getattr(exception, "response", {}).get("Error", {}).get("Code")
+            return code == "modelStreamErrorException" or super().is_retryable(exception)
+
+    return BoundedStreamRetry(max_attempts=2, initial_delay=1, max_delay=1)
+
+
 def strands_runner(
     snapshot: RepositorySnapshot,
     *,
@@ -914,6 +925,7 @@ def strands_runner(
                 tools=tools,
                 system_prompt=_node_prompt(spec, body) + "\nSubmit the final answer using GovernanceOutput. Keep reasons under 600 characters; report at most three concise unsupported claims. Do not reproduce the entire document.",
                 structured_output_model=output_schema(spec, paths),
+                retry_strategy=_model_retry_strategy(),
                 hooks=[_ToolBudget(spec, node_id, trace)],
                 callback_handler=None,
             )

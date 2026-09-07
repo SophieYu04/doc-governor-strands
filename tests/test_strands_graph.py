@@ -262,3 +262,17 @@ class StructuredOutputBoundaryTests(unittest.TestCase):
         value = SimpleNamespace(structured_output=SimpleNamespace(model_dump_json=lambda: '{"supported":false}'),
                                 message={"content": [{"text": "malformed { prose"}]})
         self.assertEqual(_result_text(value), '{"supported":false}')
+
+
+@unittest.skipUnless(STRANDS_AVAILABLE, "Strands is not installed")
+class ModelStreamRetryTests(unittest.TestCase):
+    def test_only_transient_stream_failure_is_retryable_and_attempts_are_bounded(self):
+        from docgov.agents import _model_retry_strategy
+        class ResponseError(Exception):
+            def __init__(self, code):
+                self.response = {"Error": {"Code": code}}
+        retry = _model_retry_strategy()
+        self.assertEqual(retry._max_attempts, 2)
+        self.assertTrue(retry.is_retryable(ResponseError("modelStreamErrorException")))
+        self.assertFalse(retry.is_retryable(ResponseError("AccessDeniedException")))
+        self.assertFalse(retry.is_retryable(ValueError("invalid model plan")))
