@@ -111,6 +111,13 @@ class StubModel(Model):  # type: ignore[misc,valid-type]
             yield {"contentBlockStop": {}}
             yield {"messageStop": {"stopReason": "tool_use"}}
             return
+        if any(spec.get("name") == "GovernanceOutput" for spec in (tool_specs or [])):
+            yield {"messageStart": {"role": "assistant"}}
+            yield {"contentBlockStart": {"start": {"toolUse": {"name": "GovernanceOutput", "toolUseId": "output"}}}}
+            yield {"contentBlockDelta": {"delta": {"toolUse": {"input": self._answer_for(system_prompt)}}}}
+            yield {"contentBlockStop": {}}
+            yield {"messageStop": {"stopReason": "tool_use"}}
+            return
         yield {"messageStart": {"role": "assistant"}}
         yield {"contentBlockDelta": {"delta": {"text": self._answer_for(system_prompt)}}}
         yield {"contentBlockStop": {}}
@@ -227,3 +234,31 @@ class StrandsGraphSmokeTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class StructuredOutputBoundaryTests(unittest.TestCase):
+    def test_final_output_budget_does_not_expand_read_access(self):
+        from types import SimpleNamespace
+        from docgov.agents import _ToolBudget, EVIDENCE_AUDITOR
+        trace = []
+        budget = _ToolBudget(EVIDENCE_AUDITOR, "audit", trace)
+        for _ in range(EVIDENCE_AUDITOR.max_tool_calls):
+            budget._before_tool_call(SimpleNamespace(tool_use={"name": "evidence_for_document"}, cancel_tool=None))
+        for name in ("evidence_for_document", "write_document"):
+            event = SimpleNamespace(tool_use={"name": name}, cancel_tool=None)
+            budget._before_tool_call(event)
+            self.assertIsNotNone(event.cancel_tool)
+        for _ in range(3):
+            event = SimpleNamespace(tool_use={"name": "GovernanceOutput"}, cancel_tool=None)
+            budget._before_tool_call(event)
+            self.assertIsNone(event.cancel_tool)
+        event = SimpleNamespace(tool_use={"name": "GovernanceOutput"}, cancel_tool=None)
+        budget._before_tool_call(event)
+        self.assertIsNotNone(event.cancel_tool)
+
+    def test_structured_output_takes_precedence_over_untrusted_prose(self):
+        from types import SimpleNamespace
+        from docgov.agents import _result_text
+        value = SimpleNamespace(structured_output=SimpleNamespace(model_dump_json=lambda: '{"supported":false}'),
+                                message={"content": [{"text": "malformed { prose"}]})
+        self.assertEqual(_result_text(value), '{"supported":false}')

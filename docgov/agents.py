@@ -30,7 +30,7 @@ import json
 import os
 import re
 from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, Iterable, List, Optional, Sequence, Tuple
+from typing import Any, Callable, Dict, Iterable, List, Optional, Sequence, Tuple, Literal
 
 from .catalog import Catalog
 from .drafting import DraftValidation, validate_draft
@@ -105,7 +105,7 @@ _JSON_ONLY = "Reply with a single JSON object and nothing else. No prose, no cod
 EVIDENCE_AUDITOR = AgentSpec(
     identifier="evidence_auditor",
     role="Evidence Auditor",
-    tool_names=("evidence_for_document",),
+    tool_names=("evidence_for_document", "GovernanceOutput"),
     max_tool_calls=2,
     document_types=(),
     system_prompt=(
@@ -126,7 +126,7 @@ EVIDENCE_AUDITOR = AgentSpec(
 CONFLICT_RESOLVER = AgentSpec(
     identifier="conflict_resolver",
     role="Conflict Resolver",
-    tool_names=("declared_source",),
+    tool_names=("declared_source", "GovernanceOutput"),
     max_tool_calls=6,
     document_types=(),
     system_prompt=(
@@ -145,7 +145,7 @@ CONFLICT_RESOLVER = AgentSpec(
 CONTRACT_DRAFTER = AgentSpec(
     identifier="contract_drafter",
     role="Contract Drafter",
-    tool_names=("target_document", "declared_source"),
+    tool_names=("target_document", "declared_source", "GovernanceOutput"),
     max_tool_calls=8,
     document_types=("contract",),
     system_prompt=(
@@ -819,6 +819,7 @@ class _ToolBudget:
         self.node_id = node_id
         self.trace = trace
         self.calls = 0
+        self.output_attempts = 0
 
     def register_hooks(self, registry: Any, **_: Any) -> None:  # pragma: no cover - needs strands
         from strands.hooks import BeforeToolCallEvent
@@ -832,6 +833,14 @@ class _ToolBudget:
                 f"{self.spec.role} is not permitted to call {name!r}."
             )
             self.trace.append({"event": "tool_denied", "name": f"{self.node_id}:{name}"})
+            return
+        if name == "GovernanceOutput":
+            if self.output_attempts >= 3:
+                event.cancel_tool = "Structured output attempt budget exhausted."
+                self.trace.append({"event": "tool_budget_exceeded", "name": f"{self.node_id}:{name}"})
+                return
+            self.output_attempts += 1
+            self.trace.append({"event": "tool_call", "name": f"{self.node_id}:{name}"})
             return
         if self.calls >= self.spec.max_tool_calls:
             event.cancel_tool = (
@@ -859,10 +868,13 @@ def strands_runner(
         from strands import Agent, tool
         from strands.models import BedrockModel
         from strands.multiagent import GraphBuilder
+        from pydantic import BaseModel, ConfigDict, Field, create_model
 
         trace: List[Dict[str, str]] = []
         model = BedrockModel(
             model_id=model_id,
+            temperature=0,
+            max_tokens=4096,
             region_name=os.environ.get("AWS_REGION", "us-west-2"),
         )
         builder = GraphBuilder()
@@ -876,12 +888,32 @@ def strands_runner(
             or DEFAULT_NODE_TIMEOUT_SECONDS
         ))
 
-        def make_agent(spec: AgentSpec, node_id: str, body: str, tools: List[Any]) -> Any:
+        class StrictOutput(BaseModel):
+            model_config = ConfigDict(extra="forbid", strict=True)
+
+        def output_schema(spec: AgentSpec, paths: Tuple[str, ...]) -> Any:
+            if spec == EVIDENCE_AUDITOR:
+                fields = dict(path=(Literal[paths[0]], ...), supported=(bool, ...),
+                    confidence=(Literal["high", "medium", "low"], ...),
+                    unsupported_claims=(List[str], Field(max_length=3)), reason=(str, Field(min_length=1, max_length=600)))
+            elif spec == CONFLICT_RESOLVER:
+                fields = dict(subject=(str, ...), canonical_path=(Literal[paths], ...),
+                    superseded_paths=(List[Literal[paths]], ...), needs_human=(bool, ...),
+                    reason=(str, Field(min_length=1)))
+            else:
+                fields = dict(path=(Literal[paths[0]], ...), original_span=(str, ...),
+                    proposed_span=(str, ...), cited_sources=(List[str], ...),
+                    factual_tokens=(List[str], ...), reason=(str, Field(min_length=1)))
+            return create_model("GovernanceOutput", __base__=StrictOutput, **fields)
+
+        def make_agent(spec: AgentSpec, node_id: str, body: str, tools: List[Any],
+                       paths: Tuple[str, ...]) -> Any:
             assert_read_only(spec)
             return Agent(
                 model=model,
                 tools=tools,
-                system_prompt=_node_prompt(spec, body),
+                system_prompt=_node_prompt(spec, body) + "\nSubmit the final answer using GovernanceOutput. Keep reasons under 600 characters; report at most three concise unsupported claims. Do not reproduce the entire document.",
+                structured_output_model=output_schema(spec, paths),
                 hooks=[_ToolBudget(spec, node_id, trace)],
                 callback_handler=None,
             )
@@ -935,7 +967,7 @@ def strands_runner(
                 f"{node.claims}\n"
             )
             builder.add_node(
-                make_agent(EVIDENCE_AUDITOR, node.node_id, body, [make_evidence_tool(node.path)]),
+                make_agent(EVIDENCE_AUDITOR, node.node_id, body, [make_evidence_tool(node.path)], (node.path,)),
                 node.node_id,
             )
             builder.set_entry_point(node.node_id)
@@ -952,7 +984,7 @@ def strands_runner(
                 f"{rendered}\n"
             )
             builder.add_node(
-                make_agent(CONFLICT_RESOLVER, node.node_id, body, [make_source_tool(patterns)]),
+                make_agent(CONFLICT_RESOLVER, node.node_id, body, [make_source_tool(patterns)], node.paths),
                 node.node_id,
             )
             for audit_id in audit_ids:
@@ -973,6 +1005,7 @@ def strands_runner(
                     node.node_id,
                     body,
                     [make_target_tool(node.path), make_source_tool(patterns)],
+                    (node.path,),
                 ),
                 node.node_id,
             )
@@ -1025,6 +1058,9 @@ def _unsupported_condition(auditor_node_id: str) -> Callable[[Any], bool]:  # pr
 
 
 def _result_text(result: Any) -> str:
+    structured = getattr(result, "structured_output", None)
+    if structured is not None:
+        return structured.model_dump_json()
     if isinstance(result, str):
         return result
     message = getattr(result, "message", None)
