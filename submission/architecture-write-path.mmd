@@ -1,34 +1,10 @@
-flowchart TB
-  subgraph PRE["COMMIT-TIME REPAIR"]
-    direction LR
-    C["git commit"] --> I["Impact scan<br/><small>Git paths · hashes<br/>zero model tokens</small>"]
-    I --> P["Strands Repair Planner<br/><small>read-only · isolated per document<br/>Amazon Nova Lite</small>"]
-    P --> X["Coding-agent executor<br/><small>Codex by default</small>"]
-    X --> V["Tests + verification"]
-    V --> H["Stage repair<br/><small>maintainer approval required</small>"]
-  end
-
-  subgraph GOV["PULL REQUEST GOVERNANCE"]
-    direction LR
-    A["GitHub pull request<br/>or daily audit"] --> B["Deterministic governance scan<br/><small>diff · hashes · TTL<br/>catalog · Supabase Advisor</small>"]
-    B --> G
-    subgraph G["Strands Graph on Amazon Bedrock"]
-      direction TB
-      A1["Evidence Auditor<br/><small>one per document · adversarial<br/>never sees the document's own status</small>"]
-      A2["Conflict Resolver<br/><small>only the conflicting documents</small>"]
-      A3["Contract Drafter<br/><small>contract documents only —<br/>cannot be constructed otherwise</small>"]
-      A1 --> A2
-      A1 --> A3
-    end
-    G --> R["Deterministic ruling<br/><small>every factual token must appear<br/>in a cited source file, or the whole<br/>draft is discarded</small>"]
-    B --> R
-    R ==> T[".docgov/trust.json"]
-    R --> L[".docgov/ledger.jsonl<br/><small>append-only</small>"]
-    R --> D["Decision card"]
-  end
-
-  PRE ~~~ GOV
-  classDef store fill:#fff4d6,stroke:#c99a2e,color:#4a3608,stroke-width:2px
-  classDef entry fill:#e8eef8,stroke:#4a6fa5,color:#12223a,stroke-width:2px
-  class T,L store
-  class A,C entry
+flowchart LR
+  G[Staged source changes] --> I[Deterministic dependency scan]
+  I --> P[Read-only Strands Planner / Nova Lite]
+  P --> X[Codex edits allowlisted prose in isolation]
+  X --> V[Tests + unchanged source/index checks]
+  V --> R[Separate read-only coding-agent review]
+  R --> H[Hash-bound receipt + ledger]
+  H --> C[PR deterministic and conflict checks]
+  C --> T[Committed trust table]
+  R -->|Unresolved claims| B[Refuse trust]

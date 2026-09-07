@@ -8,3 +8,6 @@ build/
 *.egg-info/
 .env
 .docgov/proposals/
+
+# Private recording material and narration for Sophie
+material4sophie/
