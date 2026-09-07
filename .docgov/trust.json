@@ -3,8 +3,8 @@
   "documents": [
     {
       "canonical_path": null,
-      "content_sha256": "4ee1ea6499123a7206997796c4bd559cb625c31082ec6ea8e5c05a47fb076577",
-      "dependency_fingerprint": "0e015f3e52ffd181cd5ba15920ff298ce1158b301f7a62fff5cad6af6cc3e0e3",
+      "content_sha256": "e8d79f31a835824ec4b3930951b5b4c0c32c21ed3611024789cfdaeaebd57fd7",
+      "dependency_fingerprint": "72f4dc398e6a7f8954364a7e07886812904d1393207a656be0d69c7f64788db6",
       "head_sha": "ca95ff5bcf89f55e92c37361cadca4a0545a3e2e",
       "path": "AGENTS.md",
       "reason": "Governance control document is readable so the trust gate can bootstrap.",
@@ -45,7 +45,7 @@
     {
       "canonical_path": null,
       "content_sha256": "7923d89a867aeae84e5a25bd6e13933a4db9169b98e04ad71885b82f65458791",
-      "dependency_fingerprint": "4bfc7ae6c00c144e11b43f3ef9360bb57e9fe1610e553511fe1cb7b0ae396335",
+      "dependency_fingerprint": "fea346669080b3fce12b2c38f0df41ba964f2166d43249fc5fb96c8e73a05e46",
       "head_sha": "ca95ff5bcf89f55e92c37361cadca4a0545a3e2e",
       "path": "README.md",
       "reason": "Document content changed after its latest successful verification.",
