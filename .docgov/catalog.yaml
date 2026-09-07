@@ -36,6 +36,7 @@ documents:
   - action.yml
   - .github/workflows/**
   - pyproject.toml
+  - tests/**
   approval: auto
   authority: canonical
 - path: examples/supabase-demo/docs/architecture/API.md
