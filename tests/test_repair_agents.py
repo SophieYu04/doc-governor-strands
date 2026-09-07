@@ -131,3 +131,23 @@ class StructuredRepairGraphTests(StrandsRepairPlanningTests):
         self.assertEqual(instructions[0].evidence_paths, ("src/interface.py",))
         self.assertIn({"event": "tool_call", "name": "repair_planner__0:RepairPlanOutput"}, trace)
         self.assertEqual(trace[-1], {"event": "agent_complete", "name": "repair_planner__0"})
+
+
+class RepairToolBudgetTests(unittest.TestCase):
+    def test_output_is_available_after_read_budget_exhaustion_and_is_bounded(self):
+        from types import SimpleNamespace
+        from docgov.repair_agents import _RepairToolBudget, REPAIR_PLANNER
+        trace = []
+        budget = _RepairToolBudget(REPAIR_PLANNER, "node", trace)
+        for _ in range(REPAIR_PLANNER.max_tool_calls):
+            budget._before_tool_call(SimpleNamespace(tool_use={"name":"target_document"}, cancel_tool=None))
+        extra = SimpleNamespace(tool_use={"name":"target_document"}, cancel_tool=None)
+        budget._before_tool_call(extra)
+        self.assertIsNotNone(extra.cancel_tool)
+        for _ in range(3):
+            output = SimpleNamespace(tool_use={"name":"RepairPlanOutput"}, cancel_tool=None)
+            budget._before_tool_call(output)
+            self.assertIsNone(output.cancel_tool)
+        output = SimpleNamespace(tool_use={"name":"RepairPlanOutput"}, cancel_tool=None)
+        budget._before_tool_call(output)
+        self.assertIsNotNone(output.cancel_tool)

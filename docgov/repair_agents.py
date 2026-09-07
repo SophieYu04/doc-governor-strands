@@ -53,6 +53,25 @@ REPAIR_PLANNER = AgentSpec(
 assert_read_only(REPAIR_PLANNER)
 
 
+class _RepairToolBudget(_ToolBudget):
+    """Reserve bounded final-output attempts independently from read-tool calls."""
+
+    def __init__(self, *args: Any) -> None:
+        super().__init__(*args)
+        self.output_attempts = 0
+
+    def _before_tool_call(self, event: Any) -> None:
+        name = str(event.tool_use.get("name", ""))
+        if name != "RepairPlanOutput":
+            return super()._before_tool_call(event)
+        if self.output_attempts >= 3:
+            event.cancel_tool = "Repair plan output attempt budget exhausted."
+            self.trace.append({"event": "tool_budget_exceeded", "name": f"{self.node_id}:{name}"})
+            return
+        self.output_attempts += 1
+        self.trace.append({"event": "tool_call", "name": f"{self.node_id}:{name}"})
+
+
 class RepairPlanError(RuntimeError):
     """Raised when Strands cannot produce a bounded, grounded repair plan."""
 
@@ -228,7 +247,7 @@ def strands_repair_runner(snapshot: RepositorySnapshot, *, model_id: str) -> Rep
                     make_source_tool(node.depends_on, node.changed_sources),
                 ],
                 system_prompt=_node_prompt(REPAIR_PLANNER, body),
-                hooks=[_ToolBudget(REPAIR_PLANNER, node.node_id, trace)],
+                hooks=[_RepairToolBudget(REPAIR_PLANNER, node.node_id, trace)],
                 callback_handler=None,
             )
             builder.add_node(agent, node.node_id)

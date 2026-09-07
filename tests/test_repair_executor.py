@@ -16,6 +16,11 @@ from docgov.engine import RepositorySnapshot
 
 class IsolatedRepairTests(unittest.TestCase):
     def setUp(self):
+        # Each fixture is an independent repository, even when the suite is a verifier child.
+        environment = patch.dict(os.environ)
+        environment.start()
+        self.addCleanup(environment.stop)
+        os.environ.pop("DOCGOV_REPAIR_ACTIVE", None)
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name).resolve() / "repo"
@@ -68,6 +73,11 @@ class IsolatedRepairTests(unittest.TestCase):
         self.assertEqual(self.git("write-tree"), tree)
         self.assertEqual((self.root / "docs/API.md").read_bytes(), content)
         return result
+
+    def test_recursive_repair_stops_before_execution(self):
+        with patch.dict(os.environ, {"DOCGOV_REPAIR_ACTIVE": "1"}):
+            result = self.run_repair(planner_runner=lambda _: self.fail("recursive planner"))
+        self.assertEqual(result["error_code"], "recursive_repair")
 
     def test_staged_source_only_and_preserves_other_work(self):
         (self.root / "src/version.txt").write_text("3\n")

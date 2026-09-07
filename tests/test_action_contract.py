@@ -96,6 +96,7 @@ class ActionContractTests(unittest.TestCase):
             command.write_text("#!/bin/sh\nprintf '%s\\n' \"$@\"\nexit 2\n")
             command.chmod(0o755)
             env = os.environ.copy()
+            env.pop("DOCGOV_REPAIR_ACTIVE", None)
             env["DOCGOV_BIN"] = str(command)
             result = subprocess.run(["sh", str(ROOT / ".githooks/pre-commit")], cwd=root,
                                     env=env, text=True, capture_output=True)
