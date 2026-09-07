@@ -17,6 +17,8 @@ def repair_candidates(snapshot: RepositorySnapshot) -> List[DocumentRecord]:
         record
         for record in snapshot.catalog.documents
         if record.type in {"contract", "procedure"}
+        and record.approval != "human"
+        and not snapshot.catalog.is_protected(record.path)
         and any(matches_repo_glob(record.path, pattern) for pattern in patterns)
         and any(
             matches_repo_glob(path, dependency)
@@ -32,6 +34,7 @@ def build_repair_prompt(
     enable_model: bool = False,
     model_id: Optional[str] = None,
     runner: Optional[RepairRunner] = None,
+    trace: Optional[List[dict]] = None,
 ) -> str:
     candidates = repair_candidates(snapshot)
     if not candidates:
@@ -43,6 +46,7 @@ def build_repair_prompt(
             candidates,
             model_id=model_id,
             runner=runner,
+            trace_sink=trace,
         )
     plans_by_path = {item.path: item for item in planned}
     sections: List[str] = []

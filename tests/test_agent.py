@@ -634,11 +634,11 @@ class ConfinementTests(unittest.TestCase):
             [{"event": "tool_call", "name": "evidence_auditor__0:evidence_for_document"}],
         )
 
-    def test_an_empty_plan_still_reports_the_model_as_used(self) -> None:
+    def test_an_empty_plan_does_not_report_the_model_as_used(self) -> None:
         snapshot = RepositorySnapshot(root=Path("."), catalog=Catalog.default())
         baseline = GovernanceDecision("run", "review", "pass", False)
         decision = run_graph(snapshot, baseline, model_id="test-model")
-        self.assertTrue(decision.model_used)
+        self.assertFalse(decision.model_used)
         self.assertEqual(decision.result, "pass")
 
 

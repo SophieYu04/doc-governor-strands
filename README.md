@@ -57,27 +57,42 @@ This reconciles source facts, not environment claims: a Git commit does not asse
 
 ### Coding-agent repair before commit
 
-Required control documents such as `AGENTS.md` and `README.md` can use the `auto_repair_documents` Catalog policy. When one of their declared dependencies changes, the tracked `.githooks/pre-commit` hook emits a bounded deterministic repair prompt by default. Set `DOCGOV_ENABLE_MODEL=1` for the competition profile: a read-only Strands Repair Planner on Amazon Bedrock then gives each affected document an isolated graph node that can read only the document itself and changed files matching its declared dependencies. The graph emits bounded instructions and cited evidence paths, never writes. An absent, malformed, out-of-scope, or `needs_human` plan blocks the commit.
+The shared `docgov repair --json` entry point repairs eligible documents before a commit. The tracked `.githooks/pre-commit` hook delegates to this command. Only staged changes to declared dependencies trigger the planner; unstaged source edits remain outside its snapshot. Protected documents and documents requiring human approval are never automatic repair targets.
 
-`DOCGOV_REPAIR_COMMAND` sends the plan to any local coding-agent command that accepts a prompt on stdin and can edit the working tree. Codex is the default executor; Claude Code, GitHub Copilot, a local model, or another agent can be selected without changing Doc Governor. The hook then runs repository verification and stages the repaired documents. It never runs `baseline --approved`: tests prove the repository still works, not that every prose claim is true. A maintainer must review the diff and separately record the verification before MCP serves the document as trusted.
+The read-only Strands Repair Planner on Amazon Bedrock receives each target and its changed declared sources. A missing, malformed, out-of-scope, or `needs_human` plan blocks execution. Codex is the default executor; `DOCGOV_REPAIR_COMMAND` may select another trusted local command accepting the plan on stdin. Commands come from local configuration, never from model output.
 
-**In the competition profile, Strands on Amazon Bedrock with Amazon Nova Lite decides the evidence-bounded repair; Codex executes it; deterministic Doc Governor code and maintainer approval decide whether the result is trusted.**
+The executor runs in a temporary Git repository containing HEAD plus the exact staged patch. Only existing allowlisted document bodies may change. Verification must pass before repaired bytes return to the original worktree and index. Partially staged target documents, concurrent source edits, changes outside the allowlist, Git-state changes, and verification-metadata edits stop publication. Unrelated local work is preserved. A repeated repair with no new document difference stages nothing extra.
 
 ```sh
+python -m pip install '.[bedrock]'
+aws login --profile docgov-local --region us-west-2
+export AWS_PROFILE=docgov-local
+export AWS_REGION=us-west-2
+export AWS_DEFAULT_REGION=us-west-2
+export AWS_EC2_METADATA_DISABLED=true
+export DOCGOV_ENABLE_MODEL=1
+export DOCGOV_VERIFY_COMMAND='python -m unittest discover -v'
 git config core.hooksPath .githooks
 
-# Optional competition profile: invoke Strands with Amazon Nova Lite on Bedrock
-export AWS_REGION=us-west-2
-export DOCGOV_ENABLE_MODEL=1
-
-# Default executor: Codex
-git commit -m "change implementation"
-
-# Any other stdin-capable coding agent
-DOCGOV_REPAIR_COMMAND='your-agent-command' git commit -m "change implementation"
+docgov repair --json
+# The same operation also runs before git commit.
 ```
 
-The competition profile requires AWS credentials with permission to invoke Amazon Nova Lite whenever a required document is impacted. The deterministic impact scan still costs zero model tokens; Bedrock is called only after that scan finds a repair candidate and only when `DOCGOV_ENABLE_MODEL=1`. Normal local commits use the developer's existing Codex account and make no Bedrock or Claude Code call. `DOCGOV_REPAIR_PLANNER_COMMAND` exists for offline tests. Set `DOCGOV_SKIP_REPAIR=1` only for recovery; CI governance still detects an unverified required document.
+Use a restricted AWS identity with only the model invocation and short-lived sign-in permissions. The Bedrock extra includes `botocore[crt]`, which the AWS login credential provider requires. Affected commits fail closed when model access or the explicit verification command is unavailable; unaffected commits require no model call. `repair-prompt` remains the provider-neutral planning interface, but the repair hook requires a real model-backed plan and provides no skip or substitute-planner switch.
+
+JSON reports `result`, `model_requested`, `model_used`, identifier-only `model_trace`, `source_head`, `staged_tree`, target documents, `modified_paths`, verification, and a sanitized error code. Requested execution is distinct from successful model execution: empty graphs and failed calls do not report model success. A completed model may still yield a rejected plan, so `model_used: true` alone does not prove successful repair. Save the JSON together with the reviewed staged diff for acceptance evidence; public traces exclude private document text.
+
+Neither the hook nor the executor approves documents, changes their verification dates, or invokes `baseline --approved`. Tests establish only what they check. A maintainer must separately review and authorize repaired claims before the read-only MCP server can serve them as trusted.
+
+Example Catalog policy (the target must also have a registered contract or procedure record with declared dependencies):
+
+```yaml
+policies:
+  auto_repair_documents:
+    - docs/architecture/DATABASE.md
+  protected:
+    - docs/status/**
+```
 
 **Why the recheck matters.** A developer commits code locally and `trust.json` is instantly older than `HEAD`. Without step 2 the server would serve stale content marked fresh. The recheck is pure hashing, so a document that was readable a second ago becomes unreadable the moment one of its declared dependencies changes — with no Doc Governor run in between.
 

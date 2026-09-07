@@ -17,6 +17,7 @@ dependencies = [
 [project.optional-dependencies]
 bedrock = [
   "boto3>=1.43,<2",
+  "botocore[crt]>=1.43,<2",
   "pydantic>=2.13,<3",
   "strands-agents>=1.54,<2",
 ]

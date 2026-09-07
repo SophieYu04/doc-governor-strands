@@ -100,3 +100,34 @@ class StrandsRepairPlanningTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class StructuredRepairGraphTests(StrandsRepairPlanningTests):
+    def test_real_graph_returns_validated_structured_plan(self):
+        from unittest.mock import patch
+        from tests.test_strands_graph import StubModel, STRANDS_AVAILABLE
+        if not STRANDS_AVAILABLE:
+            self.skipTest("Strands is not installed")
+
+        class RepairModel(StubModel):
+            async def stream(self, messages, tool_specs=None, system_prompt=None, **kwargs):
+                count = sum(1 for m in messages for b in m.get("content", []) if "toolResult" in b)
+                payload = {
+                    "path": "AGENTS.md", "instructions": ["Use interface version 2."],
+                    "evidence_paths": ["src/interface.py"], "needs_human": False,
+                    "reason": "The declared interface source defines version 2.",
+                }
+                calls = [("target_document", {}), ("declared_source", {"path": "src/interface.py"}),
+                         ("RepairPlanOutput", payload)]
+                name, args = calls[min(count, 2)]
+                yield {"messageStart": {"role": "assistant"}}
+                yield {"contentBlockStart": {"start": {"toolUse": {"name": name, "toolUseId": f"repair{count}"}}}}
+                yield {"contentBlockDelta": {"delta": {"toolUse": {"input": json.dumps(args)}}}}
+                yield {"contentBlockStop": {}}
+                yield {"messageStop": {"stopReason": "tool_use"}}
+
+        with patch("strands.models.BedrockModel", return_value=RepairModel({})):
+            instructions, trace = run_repair_graph(self.snapshot, self.candidates)
+        self.assertEqual(instructions[0].evidence_paths, ("src/interface.py",))
+        self.assertIn({"event": "tool_call", "name": "repair_planner__0:RepairPlanOutput"}, trace)
+        self.assertEqual(trace[-1], {"event": "agent_complete", "name": "repair_planner__0"})

@@ -791,7 +791,7 @@ def run_graph(
             changed=False,
             findings=baseline.findings,
             head_sha=baseline.head_sha,
-            model_used=True,
+            model_used=False,
             model_trace=[{"event": "graph_empty", "name": "no_governed_document_changed"}],
         )
         return decision
