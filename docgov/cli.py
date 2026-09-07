@@ -17,6 +17,7 @@ from .models import DocumentRecord, GovernanceDecision
 from .repair import build_repair_prompt, repair_candidates
 from .repair_agents import RepairPlanError
 from .repair_executor import repair_staged
+from .model_errors import model_error_code
 from .supabase_remote import (
     DEFAULT_EVIDENCE_DIR,
     PROMOTION_ACTION,
@@ -485,28 +486,34 @@ def main(argv: List[str] | None = None) -> int:
         _print(decision, args.as_json)
         return _exit_code(decision)
     if args.command == "repair-prompt":
+        trace: list[dict[str, str]] = []
         try:
             prompt = build_repair_prompt(
                 snapshot,
                 enable_model=args.enable_model,
                 model_id=args.model_id,
+                trace=trace,
             )
         except (RepairPlanError, AgentContractError, OSError, RuntimeError) as exc:
             if args.as_json:
                 print(json.dumps({
                     "documents": [record.path for record in repair_candidates(snapshot)],
-                    "error": f"Strands repair planning failed closed: {exc}",
-                    "model_used": bool(args.enable_model),
+                    "error": f"Strands repair planning failed closed: {model_error_code(exc)}",
+                    "model_requested": bool(args.enable_model),
+                    "model_used": any(event.get("event") == "agent_complete" for event in trace),
+                    "model_trace": trace,
                     "required": True,
                     "result": "blocked",
                 }, ensure_ascii=False))
             else:
-                print(f"Strands repair planning failed closed: {exc}", file=sys.stderr)
+                print(f"Strands repair planning failed closed: {model_error_code(exc)}", file=sys.stderr)
             return 2
         if args.as_json:
             print(json.dumps({
                 "documents": [record.path for record in repair_candidates(snapshot)],
-                "model_used": bool(args.enable_model and prompt),
+                "model_requested": bool(args.enable_model),
+                "model_used": any(event.get("event") == "agent_complete" for event in trace),
+                "model_trace": trace,
                 "planner": "strands" if args.enable_model and prompt else "deterministic",
                 "prompt": prompt,
                 "required": bool(prompt),

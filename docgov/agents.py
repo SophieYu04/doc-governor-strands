@@ -30,7 +30,7 @@ import json
 import os
 import re
 from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, Iterable, List, Optional, Sequence, Tuple, Literal
+from typing import Any, Callable, Dict, Iterable, List, Optional, Sequence, Tuple, Literal, Annotated
 
 from .catalog import Catalog
 from .drafting import DraftValidation, validate_draft
@@ -100,7 +100,7 @@ class AgentSpec:
         return not self.document_types or document_type in self.document_types
 
 
-_JSON_ONLY = "Reply with a single JSON object and nothing else. No prose, no code fence."
+_JSON_ONLY = "Submit your final answer through GovernanceOutput; only its validated payload is consumed."
 
 EVIDENCE_AUDITOR = AgentSpec(
     identifier="evidence_auditor",
@@ -886,6 +886,8 @@ def strands_runner(
             model_id=model_id,
             temperature=0,
             max_tokens=4096,
+            additional_request_fields=({"inferenceConfig": {"topK": 1}}
+                                       if "amazon.nova" in model_id else None),
             region_name=os.environ.get("AWS_REGION", "us-west-2"),
         )
         builder = GraphBuilder()
@@ -906,15 +908,15 @@ def strands_runner(
             if spec == EVIDENCE_AUDITOR:
                 fields = dict(path=(Literal[paths[0]], ...), supported=(bool, ...),
                     confidence=(Literal["high", "medium", "low"], ...),
-                    unsupported_claims=(List[str], Field(max_length=3)), reason=(str, Field(min_length=1, max_length=600)))
+                    unsupported_claims=(List[Annotated[str, Field(max_length=400)]], Field(max_length=3)), reason=(str, Field(min_length=1, max_length=300)))
             elif spec == CONFLICT_RESOLVER:
                 fields = dict(subject=(str, ...), canonical_path=(Literal[paths], ...),
                     superseded_paths=(List[Literal[paths]], ...), needs_human=(bool, ...),
-                    reason=(str, Field(min_length=1)))
+                    reason=(str, Field(min_length=1, max_length=300)))
             else:
-                fields = dict(path=(Literal[paths[0]], ...), original_span=(str, ...),
-                    proposed_span=(str, ...), cited_sources=(List[str], ...),
-                    factual_tokens=(List[str], ...), reason=(str, Field(min_length=1)))
+                fields = dict(path=(Literal[paths[0]], ...), original_span=(str, Field(max_length=600)),
+                    proposed_span=(str, Field(max_length=600)), cited_sources=(List[str], Field(max_length=6)),
+                    factual_tokens=(List[str], Field(max_length=24)), reason=(str, Field(min_length=1, max_length=300)))
             return create_model("GovernanceOutput", __base__=StrictOutput, **fields)
 
         def make_agent(spec: AgentSpec, node_id: str, body: str, tools: List[Any],
@@ -923,7 +925,7 @@ def strands_runner(
             return Agent(
                 model=model,
                 tools=tools,
-                system_prompt=_node_prompt(spec, body) + "\nSubmit the final answer using GovernanceOutput. Keep reasons under 600 characters; report at most three concise unsupported claims. Do not reproduce the entire document.",
+                system_prompt=_node_prompt(spec, body) + "\nSubmit the final answer using GovernanceOutput. Keep reasons under 300 characters; report at most three unsupported quotes of at most 400 characters each. Draft only one span of at most 600 characters, or decline with an empty proposed_span. Do not reproduce the entire document.",
                 structured_output_model=output_schema(spec, paths),
                 retry_strategy=_model_retry_strategy(),
                 hooks=[_ToolBudget(spec, node_id, trace)],
@@ -1036,8 +1038,8 @@ def strands_runner(
 
         graph = builder.build()
         result = graph(
-            "Audit the assigned documents against their evidence, then answer in the JSON schema "
-            "given in your instructions. Do not answer about any document other than your own."
+            "Audit the assigned documents against their evidence, then submit GovernanceOutput. "
+            "Do not answer about any document other than your own."
         )
         responses: Dict[str, str] = {}
         for node_id, node_result in result.results.items():

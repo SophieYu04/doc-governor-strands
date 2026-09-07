@@ -179,6 +179,23 @@ class StrandsGraphSmokeTests(unittest.TestCase):
             runner = strands_runner(self.snapshot, model_id="stub-model")
             return runner(plan_graph(self.snapshot, self.baseline))
 
+    def test_private_reasoning_text_is_discarded_before_interpreting_verdicts(self):
+        class ThinkingModel(StubModel):
+            async def stream(self, *args, **kwargs):
+                async for event in super().stream(*args, **kwargs):
+                    start = event.get("contentBlockStart", {}).get("start", {}).get("toolUse", {})
+                    if start.get("name") == "GovernanceOutput":
+                        yield {"contentBlockDelta": {"delta": {"text": "<thinking>PRIVATE { not valid JSON</thinking>"}}}
+                        yield {"contentBlockStop": {}}
+                    yield event
+        self.model = ThinkingModel(self.model.answers)
+        responses, trace = self.run_real_graph()
+        self.assertTrue(responses)
+        for value in responses.values():
+            json.loads(value)
+            self.assertNotIn("PRIVATE", value)
+        self.assertNotIn("PRIVATE", json.dumps(trace))
+
     def test_the_real_graph_builds_executes_and_returns_node_answers(self) -> None:
         plan = plan_graph(self.snapshot, self.baseline)
         self.assertTrue(plan.audits, "the fixture must give the graph something to audit")

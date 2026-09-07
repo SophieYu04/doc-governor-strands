@@ -151,3 +151,40 @@ class RepairToolBudgetTests(unittest.TestCase):
         output = SimpleNamespace(tool_use={"name":"RepairPlanOutput"}, cancel_tool=None)
         budget._before_tool_call(output)
         self.assertIsNotNone(output.cancel_tool)
+
+
+class RepairPromptExecutionReportingTests(unittest.TestCase):
+    def run_cli(self, planner):
+        from contextlib import redirect_stdout
+        from io import StringIO
+        from unittest.mock import patch
+        from docgov.cli import main
+        output = StringIO()
+        with patch("docgov.cli.build_snapshot", return_value=object()), \
+             patch("docgov.cli.repair_candidates", return_value=[]), \
+             patch("docgov.cli.build_repair_prompt", side_effect=planner), redirect_stdout(output):
+            code = main(["--json", "repair-prompt", "--enable-model"])
+        return code, json.loads(output.getvalue())
+
+    def test_refusal_does_not_claim_model_execution_or_echo_private_errors(self):
+        def refuse(*args, **kwargs):
+            raise RepairPlanError("PRIVATE DOCUMENT BODY")
+        code, result = self.run_cli(refuse)
+        self.assertEqual(code, 2)
+        self.assertTrue(result["model_requested"])
+        self.assertFalse(result["model_used"])
+        self.assertNotIn("PRIVATE", json.dumps(result))
+
+    def test_empty_plan_does_not_claim_model_execution(self):
+        code, result = self.run_cli(lambda *args, **kwargs: "")
+        self.assertEqual(code, 0)
+        self.assertTrue(result["model_requested"])
+        self.assertFalse(result["model_used"])
+
+    def test_completed_planner_is_reported_from_its_trace(self):
+        def complete(*args, **kwargs):
+            kwargs["trace"].append({"event": "agent_complete", "name": "repair_planner__0"})
+            return "bounded prompt"
+        code, result = self.run_cli(complete)
+        self.assertEqual(code, 0)
+        self.assertTrue(result["model_used"])
