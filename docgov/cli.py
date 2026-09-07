@@ -17,6 +17,7 @@ from .models import DocumentRecord, GovernanceDecision
 from .repair import build_repair_prompt, repair_candidates
 from .repair_agents import RepairPlanError
 from .repair_executor import repair_staged
+from .coding_review import review_documents
 from .model_errors import model_error_code
 from .supabase_remote import (
     DEFAULT_EVIDENCE_DIR,
@@ -379,12 +380,27 @@ def main(argv: List[str] | None = None) -> int:
     execute_repair.add_argument("--executor-command", default=None)
     execute_repair.add_argument("--verify-command", default=None)
 
+    coding_review = subparsers.add_parser("coding-review", help="Independently review owner-delegated document trust with Codex")
+    coding_review.add_argument("paths", nargs="+")
+    coding_review.add_argument("--verify-command", required=True)
+    coding_review.add_argument("--timeout", type=int, default=900)
+    coding_review.add_argument("--json", action="store_true", dest="sub_json")
+
     args = parser.parse_args(argv)
     args.as_json = bool(args.as_json or getattr(args, "sub_json", False))
     root = Path(args.root).resolve()
     catalog_path = _catalog_path(root, args.catalog)
     ledger_path = _ledger_path(root, args.ledger)
     trust_state_path = _trust_state_path(root, args.trust_state)
+
+    if args.command == "coding-review":
+        if args.catalog or args.ledger or args.trust_state:
+            parser.error("coding-review uses the repository's standard .docgov paths")
+        decision = review_documents(root, args.paths, verify_command=args.verify_command, timeout=args.timeout)
+        if decision.changed:
+            decision = _refresh_trust_state(root, catalog_path, ledger_path, trust_state_path, decision)
+        _print(decision, args.as_json)
+        return _exit_code(decision)
 
     if args.command == "repair":
         value = repair_staged(root, catalog=catalog_path.relative_to(root).as_posix(),

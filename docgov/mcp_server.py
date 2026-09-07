@@ -38,6 +38,7 @@ from .engine import (
     dependency_candidates,
     dependency_evidence,
     dependency_fingerprint,
+    has_matching_coding_review,
 )
 from .ledger import sha256_text
 from .models import DocumentRecord
@@ -70,7 +71,8 @@ CODE_NOT_USABLE = "not_usable"
 CODE_STATE_UNAVAILABLE = "state_unavailable"
 
 RESOLVE_REVERIFY = (
-    "A maintainer must re-verify this document and run `docgov baseline --approved`, "
+    "Re-verify delegated contracts with `docgov coding-review` and repository checks; "
+    "other documents require maintainer-authorized `docgov baseline --approved`, "
     "or let the next Doc Governor review regenerate the trust state."
 )
 
@@ -243,6 +245,18 @@ class DocumentSupply:
                 "carries no evidence.",
                 list(entry.source_pointers),
             )
+        if entry.verifier and entry.verifier.startswith("codex:"):
+            try:
+                catalog = Catalog.load(self.config.catalog_path)
+                record = catalog.record_for(entry.path)
+                live = RepositorySnapshot(root=self.config.root, catalog=catalog,
+                                          files={entry.path: content})
+                valid = record is not None and has_matching_coding_review(live, record)
+            except (OSError, ValueError, TypeError):
+                valid = False
+            if not valid:
+                return (CODE_NOT_USABLE, "The coding-agent review has expired, changed, or been revoked.",
+                        list(entry.source_pointers))
         return None
 
     # -- responses -------------------------------------------------------

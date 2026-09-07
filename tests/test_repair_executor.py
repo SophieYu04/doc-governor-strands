@@ -129,6 +129,13 @@ class IsolatedRepairTests(unittest.TestCase):
         self.assertEqual(result["error_code"], "executor_failed")
         self.assertNotIn("PRIVATE_DOCUMENT_TEXT", json.dumps(result))
 
+    def test_table_verification_date_cannot_be_refreshed(self):
+        p = self.root / "docs/API.md"
+        p.write_text(p.read_text() + "\n| **last_verified_at** | 2026-01-01 |\n")
+        self.git("add", "docs/API.md")
+        self.script.write_text("from pathlib import Path\np=Path('docs/API.md');p.write_text(p.read_text().replace('2026-01-01','2026-09-07'))\n")
+        self.assertEqual(self.unchanged_after()["error_code"], "verification_metadata_modified")
+
     def test_verification_failure_never_publishes(self):
         self.assertEqual(self.unchanged_after(verify_command=f"{sys.executable} -c 'exit(1)'")["error_code"], "verification_failed")
 

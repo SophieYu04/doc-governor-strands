@@ -81,7 +81,7 @@ def _working_signature(root: Path, paths: set[str]) -> dict[str, Any]:
 def _metadata(text: bytes) -> list[str]:
     # A prose repair must not refresh a status or verification date on its own.
     normalized = text.decode("utf-8").replace("*", "").replace("`", "")
-    return re.findall(r"(?im)^\s*(?:狀態|最後驗證|最後更新|status|approval|last_verified_at|last verified)\s*[:：=].*$",
+    return re.findall(r"(?im)^\s*(?:\|\s*)?(?:狀態|最後驗證|最後更新|status|approval|last_verified_at|last verified)\s*[:：=|].*$",
                       normalized)
 
 
