@@ -1,15 +1,6 @@
 flowchart LR
-  X["AI coding agent<br/><small>provider-neutral MCP client</small>"] ==>|"get_document('docs/architecture/API.md')"| M
-  T[".docgov/trust.json<br/><small>deterministic trust table,<br/>committed to the repository</small>"] ==> M["docgov-mcp<br/><small>read-only MCP server</small>"]
-  M ==> Q{"Recompute the SHA-256 fingerprint of the<br/>document's declared dependencies NOW.<br/>Does it still match?"}
-  Q ==>|"yes"| OK["Return the content"]
-  Q ==>|"no"| NO["Refuse<br/><small>with the reason, and the source<br/>files to read instead</small>"]
-
-  classDef good fill:#e7f5ec,stroke:#3f7d5c,color:#123524,stroke-width:2px
-  classDef bad fill:#fdeceb,stroke:#b8493f,color:#4a1512,stroke-width:2px
-  classDef store fill:#fff4d6,stroke:#c99a2e,color:#4a3608,stroke-width:2px
-  classDef entry fill:#e8eef8,stroke:#4a6fa5,color:#12223a,stroke-width:2px
-  class OK good
-  class NO bad
-  class T store
-  class X entry
+  A[Coding agent] -->|get_document| M[Read-only MCP]
+  T[Stored trust table] --> M
+  M --> Q{Usable + current hashes + authorized receipt?}
+  Q -->|Yes| Y[Return document]
+  Q -->|No| N[Refuse body + source pointers]
