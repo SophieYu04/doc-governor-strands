@@ -176,6 +176,40 @@ if mode != 'empty_model': print(json.dumps({'type':'turn.completed','usage':{'ou
         self.assertFalse(supply.document_status('docs/API.md')['usable'])
         self.assertIsNone(supply.get_document('docs/API.md')['content'])
 
+    def test_graph_reuses_exact_review_but_reaudits_changed_or_revoked_evidence(self):
+        from docgov.agents import plan_graph
+        from docgov.engine import analyze
+        def audit_paths():
+            snapshot = build_snapshot(self.root, self.root / '.docgov/catalog.yaml')
+            snapshot.changed = ['docs/API.md']
+            return [node.path for node in plan_graph(snapshot, analyze(snapshot)).audits]
+        self.assertIn('docs/API.md', audit_paths())
+        self.assertEqual(self.review().result, 'changed')
+        self.assertNotIn('docs/API.md', audit_paths())
+        source = self.root / 'src/version.txt'
+        source.write_text('2')
+        self.assertIn('docs/API.md', audit_paths())
+        source.write_text('1\n')
+        policy = self.root / '.docgov/coding-agent-review-policy.json'
+        payload = json.loads(policy.read_text()); payload['status'] = 'disabled'
+        policy.write_text(json.dumps(payload))
+        self.assertIn('docs/API.md', audit_paths())
+
+    def test_control_policy_is_not_semantic_claim_but_baseline_blocks_survive(self):
+        from docgov.agents import plan_graph, rule, GraphOutcome
+        from docgov.engine import analyze
+        catalog_path = self.root / '.docgov/catalog.yaml'
+        catalog = json.loads(catalog_path.read_text())
+        catalog['policies'] = {'control_documents': ['docs/API.md'], 'protected': ['docs/API.md']}
+        catalog_path.write_text(json.dumps(catalog))
+        snapshot = build_snapshot(self.root, catalog_path)
+        snapshot.changed = ['docs/API.md']
+        baseline = analyze(snapshot)
+        self.assertTrue(baseline.findings)
+        self.assertFalse(plan_graph(snapshot, baseline).audits)
+        decision = rule(snapshot, baseline, GraphOutcome(), model_id='test')
+        self.assertEqual(decision.findings, baseline.findings)
+
     def test_protected_change_requires_matching_delegated_review(self):
         from docgov.engine import analyze
         path = self.root / '.docgov/catalog.yaml'

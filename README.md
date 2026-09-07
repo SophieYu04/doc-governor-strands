@@ -154,7 +154,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 ```
 
-`enable_model` defaults to `false`, so installing the action cannot create model charges by itself. The competition profile sets it to `true` explicitly; the supplied workflow requests deterministic-only operation for forks, and offline runs use the deterministic path unless model use is explicitly enabled.
+`enable_model` defaults to `false`, so installing the action cannot create model charges by itself. The supplied audit and source-reconcile workflows set it to `false`; the review workflow enables it only for same-repository pull requests when both `DOCGOV_AWS_ROLE_ARN` and `DOCGOV_ENABLE_MODEL=true` are configured. These settings request a mode; they do not by themselves prove competition compliance or that a model was invoked.
 
 3. Read the repository's exact GitHub OIDC subject prefix with `gh api repos/OWNER/REPO/actions/oidc/customization/sub --jq .sub_claim_prefix`. In `infra/aws/github-oidc-trust-policy.json`, replace `<AWS_ACCOUNT_ID>` and `<GITHUB_SUB_CLAIM_PREFIX>` with the account ID and that complete prefix. This supports both name-based and immutable owner/repository-ID subjects; do not guess the subject from the repository name.
 4. Create a least-privilege AWS role with that trust policy and `infra/aws/bedrock-inference-policy.json`, replacing its account ID too. Set the role ARN as the repository variable `DOCGOV_AWS_ROLE_ARN`, then set `DOCGOV_ENABLE_MODEL=true` only on the competition repository. The Bedrock policy permits only the Amazon Nova Lite US inference profile and its three documented destination-region foundation models. The workflow exchanges GitHub OIDC for short-lived credentials only on same-repository pull requests with both variables configured; for forks, that exchange is skipped and the action inputs request deterministic operation. This does not isolate execution of the PR checkout.
@@ -239,6 +239,8 @@ The pre-commit Repair Planner handles the repetitive work: deciding how an affec
 
 The separate semantic governance graph uses three more roles. Its tool scopes separate evidence inspection, conflict resolution, and draft proposals; repository mutation remains in deterministic code.
 
+Owner-configured control documents do not undergo semantic claim auditing. Contracts with an exact, still-authorized, hash-matched independent coding-review receipt route past redundant semantic auditors; deterministic baseline findings and conflict resolution remain active, and changed or revoked receipts return the contract to normal auditing.
+
 | Agent | Sees | Tools | Structurally cannot |
 | --- | --- | --- | --- |
 | **Evidence Auditor** | One document's claims and its recorded evidence. Recognized status/verification key-value lines and HTML comments are stripped by regex, and ledger reason text is withheld; this does not remove every possible self-assessment in tables or prose. However, `ledger_actions` still exposes prior outcomes such as `verify_current` and `mark_stale` with dependency fingerprints; previous governance conclusions are not entirely withheld. | `evidence_for_document`, bounded to that one document | Read any other document, read source, write anything |
@@ -322,7 +324,7 @@ The supplied daily workflow does not pass Supabase project inputs to its audit a
 
 ### Cross-environment drift (read-only)
 
-The documented release flow is `staging → git commit / migration → release branch → production deployment`. That flow is only trustworthy if production actually reflects what Git says. A production dashboard change can invalidate claims about the affected environment; Advisor comparisons detect only the differences described below.
+The documented release-flow integration is `staging → git commit / migration → release branch → production deployment`. This describes the behavior the integration is designed to check; this repository does not claim that a production deployment occurred or that production was validated against Git. A production dashboard change can invalidate claims about the affected environment; Advisor comparisons detect only the differences described below.
 
 ```sh
 # Compare the newest working-tree Advisor evidence per environment. No network, no token.
@@ -332,7 +334,7 @@ docgov drift --environments staging,production
 SUPABASE_ACCESS_TOKEN=... docgov drift --collect --apply \
   --supabase-projects 'staging=PROJECT_REF,production=PROJECT_REF'
 
-# The release flow records the state it promoted, which rule 1 compares against.
+# An external release flow can record the state it promoted, which rule 1 compares against.
 docgov drift --apply --record-promotion production
 ```
 
@@ -434,7 +436,7 @@ It then does the part that matters — it goes on to read through the supply lay
 2. `get_document("docs/status/RELEASE.md")` is refused: no evidence backs its verification claim.
 3. `get_document("docs/architecture/API-notes.md")` is refused, but names the canonical document that absorbed it.
 4. **A dependency file’s contents change and the next read of the same trusted document is refused — with no Doc Governor run in between.** The fingerprint recheck caught it.
-5. The fixture changes production Advisor evidence from the recorded promotion. `docgov drift` raises `environment_drift`, and `docs/status/PRODUCTION.md` flips from readable to refused as a consequence.
+5. The fixture simulates production Advisor evidence changing from the recorded promotion. `docgov drift` raises `environment_drift`, and `docs/status/PRODUCTION.md` flips from readable to refused as a consequence; this is not evidence that a real production deployment occurred or was validated.
 
 Step 4 is the whole argument in one move: nothing re-ran, and the answer still changed.
 

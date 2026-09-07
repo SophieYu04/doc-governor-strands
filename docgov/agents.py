@@ -39,6 +39,7 @@ from .engine import (
     dependency_evidence,
     dependency_fingerprint,
     dependency_summary,
+    has_matching_coding_review,
     repository_path,
 )
 from .ledger import Ledger
@@ -257,7 +258,15 @@ def _audit_candidates(snapshot: RepositorySnapshot, baseline: GovernanceDecision
         if path.endswith(".md") and path in snapshot.files and path not in candidates:
             if snapshot.catalog.record_for(path) is not None:
                 candidates.append(path)
-    return candidates[:MAX_AUDIT_DOCUMENTS]
+    # Control documents define owner policy, rather than assertions to infer from
+    # file hashes. Delegated contracts have already received a source-reading
+    # review of these exact bytes. Neither route suppresses baseline findings or
+    # conflict resolution; revoked or changed receipts return to normal auditing.
+    controls = set(snapshot.catalog.policies.get("control_documents", ["AGENTS.md"]))
+    return [path for path in candidates if path not in controls and not (
+        snapshot.catalog.record_for(path)
+        and has_matching_coding_review(snapshot, snapshot.catalog.record_for(path))
+    )][:MAX_AUDIT_DOCUMENTS]
 
 
 def _conflict_groups(snapshot: RepositorySnapshot, baseline: GovernanceDecision) -> List[Tuple[str, List[str]]]:
