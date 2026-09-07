@@ -1,0 +1,72 @@
+{
+  "documents": [
+    {
+      "dependency_fingerprint": "e9932f7e29bdce82ab9f727c640fd63dc3870ca6ea54c8beafbcc7fee21723fe",
+      "path": "README.md",
+      "sha256": "77cdc24bdc9d3c5320bf8f739d7711d5b46826c704c315cdfd2270d7c262bbe7",
+      "verdict": "trusted"
+    }
+  ],
+  "evidence": [
+    {
+      "path": ".github/workflows/docgov-audit.yml",
+      "sha256": "ff7d2034eab6032bb4c66a4e704aa19a92d195f66d44c76827b25b6f8a79e43c"
+    },
+    {
+      "path": ".github/workflows/docgov-review.yml",
+      "sha256": "06518c23b0119f5397c2835ee2b9b922cdd890be2f2efef025dd9c46c90e6754"
+    },
+    {
+      "path": ".github/workflows/docgov-source-reconcile.yml",
+      "sha256": "6330989a53638d16ddbe93ffa922057bc4cdd6a9daf6423947af457f2d208948"
+    },
+    {
+      "path": ".github/workflows/test.yml",
+      "sha256": "44eee978a16a0271083d04e6527f07eb1242ae8e37e19849a5a2b9d7a9a15b44"
+    },
+    {
+      "path": "action.yml",
+      "sha256": "d3545c2dedca7ab27736d747dac17369e3928603f90b670ad37667d9b2cd6b81"
+    },
+    {
+      "path": "docgov/coding_review.py",
+      "sha256": "6b20d5376cca90c93243b94b8773f6266ed3c181c7ca3981eb4d6e13ff2b8b2b"
+    },
+    {
+      "path": "docgov/mcp_server.py",
+      "sha256": "f57af6014b71df22e18ddc5e9a6e6f0460517f471c547d1500c093104ee791dd"
+    },
+    {
+      "path": "docgov/trust_state.py",
+      "sha256": "b1db549fb1f01e160b0bf45b3e04efb5bb7d2b1d5046a3aa59ae62ecd4ec4134"
+    },
+    {
+      "path": "pyproject.toml",
+      "sha256": "59b2d91596ab84681c176381ba969104423361da81616c35d7ec5eb76322990d"
+    },
+    {
+      "path": "tests/test_action_contract.py",
+      "sha256": "2638eb21d874f979c3c8873e3f2908041d2a4beabebd20b39eb2837e7829b2c1"
+    },
+    {
+      "path": "tests/test_coding_review.py",
+      "sha256": "2e50cab67fb19f089311859aab9a2e843df20823c4ca10521d7bbbd94e4a12e6"
+    },
+    {
+      "path": "tests/test_mcp_server.py",
+      "sha256": "b5cecde96ace2ad1243c030b88f1474fe73554e1175c313ec59c4eadffa81ec0"
+    },
+    {
+      "path": "tests/test_trust_state.py",
+      "sha256": "170d9bf5fffc28a8157dcdfbce92ca4d33d3f8d0a44da3f8b71c408c4d2a843b"
+    }
+  ],
+  "model_executed": true,
+  "reviewer": "codex:01a07c93-6311-7da3-bd11-e6d8de46e260",
+  "snapshot_id": "83e7ab5855f4a67b720fee1546d200c65b5160dcd53ea04e25ab1f11302e66cc",
+  "source_head": "d0e351a1cb5c89f160d129c799ea451398685750",
+  "source_index_tree": "ed91c9452189dbc8d2169150d278cd5ef7a111ba",
+  "verifier_command": "/Users/sophie/Documents/snap/.codex-worktrees/docgov-strands-runtime/bin/python -m unittest discover -v",
+  "verifier_output_sha256": "4b57b5614c0267b89f5da72963c888dc76f2a5b9b8a583ff3a631cf384e41d28",
+  "version": 1
+}

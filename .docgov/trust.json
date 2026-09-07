@@ -3,8 +3,8 @@
   "documents": [
     {
       "canonical_path": null,
-      "content_sha256": "e8d79f31a835824ec4b3930951b5b4c0c32c21ed3611024789cfdaeaebd57fd7",
-      "dependency_fingerprint": "2f571254b773f810c608f49787ade4f072644ceee060e8b3eae6723f6a7169c1",
+      "content_sha256": "3790cc8858c8b70ad921eb96cac1de7345712f524202c931c54f298c81ffbc66",
+      "dependency_fingerprint": "97883912523d99caee16779a90d28e206acc33b847f5250d0a970d01d1374513",
       "head_sha": "ca95ff5bcf89f55e92c37361cadca4a0545a3e2e",
       "path": "AGENTS.md",
       "reason": "Governance control document is readable so the trust gate can bootstrap.",
@@ -22,6 +22,7 @@
         "docgov/agents.py",
         "docgov/catalog.py",
         "docgov/cli.py",
+        "docgov/coding_review.py",
         "docgov/drafting.py",
         "docgov/engine.py",
         "docgov/git_tools.py",
@@ -44,12 +45,12 @@
     },
     {
       "canonical_path": null,
-      "content_sha256": "7923d89a867aeae84e5a25bd6e13933a4db9169b98e04ad71885b82f65458791",
-      "dependency_fingerprint": "cbfba1c2180ca030cff49c18716f97f3780938532a8f860ad251878b9de0e9f3",
-      "head_sha": "ca95ff5bcf89f55e92c37361cadca4a0545a3e2e",
+      "content_sha256": "77cdc24bdc9d3c5320bf8f739d7711d5b46826c704c315cdfd2270d7c262bbe7",
+      "dependency_fingerprint": "e9932f7e29bdce82ab9f727c640fd63dc3870ca6ea54c8beafbcc7fee21723fe",
+      "head_sha": "d0e351a1cb5c89f160d129c799ea451398685750",
       "path": "README.md",
-      "reason": "Document content changed after its latest successful verification.",
-      "scope": "untrusted",
+      "reason": "The document is current and its recorded evidence still matches.",
+      "scope": "current_fact",
       "source_pointers": [
         ".github/workflows/docgov-audit.yml",
         ".github/workflows/docgov-init.yml",
@@ -63,6 +64,7 @@
         "docgov/agents.py",
         "docgov/catalog.py",
         "docgov/cli.py",
+        "docgov/coding_review.py",
         "docgov/drafting.py",
         "docgov/engine.py",
         "docgov/git_tools.py",
@@ -78,11 +80,24 @@
         "docgov/supabase.py",
         "docgov/supabase_remote.py",
         "docgov/trust_state.py",
-        "pyproject.toml"
+        "pyproject.toml",
+        "tests/__init__.py",
+        "tests/test_action_contract.py",
+        "tests/test_agent.py",
+        "tests/test_coding_review.py",
+        "tests/test_engine.py",
+        "tests/test_mcp_server.py",
+        "tests/test_patterns.py",
+        "tests/test_repair_agents.py",
+        "tests/test_repair_executor.py",
+        "tests/test_strands_graph.py",
+        "tests/test_supabase_remote.py",
+        "tests/test_trust_state.py"
       ],
       "type": "contract",
-      "usable": false,
-      "verified_at": "2026-09-06T11:16:47Z"
+      "usable": true,
+      "verified_at": "2026-09-07T15:54:34Z",
+      "verifier": "codex:01a07c93-6311-7da3-bd11-e6d8de46e260"
     },
     {
       "canonical_path": null,
