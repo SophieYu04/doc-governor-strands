@@ -362,6 +362,7 @@ def build_trust_state(
     return {
         "version": TRUST_STATE_VERSION,
         "catalog_path": snapshot.catalog_path,
+        "catalog_sha256": sha256_text(json.dumps(snapshot.catalog.to_dict(), sort_keys=True)),
         "ledger_path": snapshot.ledger_path,
         "drifted_environments": sorted(drifted),
         "documents": entries,

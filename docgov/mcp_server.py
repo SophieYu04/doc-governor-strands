@@ -71,9 +71,8 @@ CODE_NOT_USABLE = "not_usable"
 CODE_STATE_UNAVAILABLE = "state_unavailable"
 
 RESOLVE_REVERIFY = (
-    "Re-verify delegated contracts with `docgov coding-review` and repository checks; "
-    "other documents require maintainer-authorized `docgov baseline --approved`, "
-    "or let the next Doc Governor review regenerate the trust state."
+    "Read the source locations in read_instead. An installed background worker "
+    "maintains documentation and verification; this read endpoint never repairs files."
 )
 
 
@@ -151,10 +150,14 @@ class DocumentSupply:
 
     def reload(self) -> None:
         """Reload the trust table and catalog, recording any failure as fail-closed."""
+        self._catalog = Catalog.default()
         try:
+            catalog = Catalog.load(self.config.catalog_path)
+            self._catalog = catalog
             state = load_trust_state(self.config.trust_state_path)
             entries = trust_entries(state)
-            catalog = Catalog.load(self.config.catalog_path)
+            if state.get("catalog_sha256") != sha256_text(json.dumps(catalog.to_dict(), sort_keys=True)):
+                raise TrustStateError("Governance controls changed or lack a recorded fingerprint.")
         except (TrustStateError, OSError, ValueError) as exc:
             self._error = str(exc)
             self._entries = {}
@@ -171,13 +174,9 @@ class DocumentSupply:
 
     def _refresh_if_stale(self) -> None:
         """Pick up a trust table rewritten by a governor run while the server is up."""
-        try:
-            mtime = self.config.trust_state_path.stat().st_mtime
-        except OSError:
-            self.reload()
-            return
-        if mtime != self._state_mtime:
-            self.reload()
+        # Catalog and authorization can change without rewriting trust.json.
+        # Re-read controls on every request; an mtime cache is not a trust proof.
+        self.reload()
 
     # -- the deterministic recheck ---------------------------------------
 
@@ -203,6 +202,7 @@ class DocumentSupply:
         absolute: Path,
         *,
         candidates: Optional[List[str]] = None,
+        content: Optional[str] = None,
     ) -> Optional[Tuple[str, str, List[str]]]:
         """Re-prove a table entry against the tree as it is right now.
 
@@ -231,7 +231,8 @@ class DocumentSupply:
                 list(entry.source_pointers),
             )
         try:
-            content = absolute.read_text(encoding="utf-8")
+            if content is None:
+                content = absolute.read_bytes().decode("utf-8")
         except (OSError, UnicodeDecodeError):
             return (
                 CODE_MISSING_FILE,
@@ -302,12 +303,16 @@ class DocumentSupply:
                 how_to_resolve="Request a repository-relative path to a governed Markdown document.",
             )
         if self._error is not None:
+            try:
+                _, pointers = self.current_dependencies(relative)
+            except (OSError, ValueError):
+                pointers = []
             return self._refusal(
                 relative,
                 status="refused",
                 code=CODE_STATE_UNAVAILABLE,
                 reason=f"The trust state could not be loaded, so no document can be vouched for: {self._error}",
-                how_to_resolve="Run `docgov review --apply` to regenerate .docgov/trust.json.",
+                read_instead=pointers,
             )
         entry = self._entries.get(relative)
         if entry is None:
@@ -324,9 +329,19 @@ class DocumentSupply:
                     "or read the source files directly."
                 ),
             )
+        if not entry.usable:
+            return self._refusal(relative, status="refused", code=CODE_NOT_USABLE,
+                                 reason=entry.reason, read_instead=entry.source_pointers,
+                                 canonical_path=entry.canonical_path)
         # The trust table was written by an earlier governor run; re-prove it
         # against the tree as it exists right now.
-        failure = self.recheck(entry, absolute)
+        try:
+            content = absolute.read_bytes().decode("utf-8")
+        except (OSError, UnicodeDecodeError):
+            return self._refusal(relative, status="refused", code=CODE_MISSING_FILE,
+                                 reason="The governed document could not be read.",
+                                 read_instead=entry.source_pointers)
+        failure = self.recheck(entry, absolute, content=content)
         if failure is not None:
             code, reason, read_instead = failure
             return self._refusal(
@@ -337,7 +352,6 @@ class DocumentSupply:
                 read_instead=read_instead,
                 canonical_path=entry.canonical_path,
             )
-        content = absolute.read_text(encoding="utf-8")
         return {
             "status": "ok",
             "code": CODE_OK,
@@ -379,7 +393,12 @@ class DocumentSupply:
             except PathRejected as exc:
                 failure = (CODE_PATH_REJECTED, str(exc), [])
             else:
-                failure = self.recheck(entry, absolute, candidates=candidates)
+                try:
+                    content = absolute.read_bytes().decode("utf-8")
+                    failure = self.recheck(entry, absolute, candidates=candidates, content=content)
+                except (OSError, UnicodeDecodeError):
+                    content = ""
+                    failure = (CODE_MISSING_FILE, "The governed document could not be read.", [])
             if failure is None:
                 usable = True
                 reason = entry.reason
@@ -394,7 +413,7 @@ class DocumentSupply:
                 # content from a document it has refused.
                 try:
                     if absolute.is_file():
-                        summary = _summary(absolute.read_text(encoding="utf-8"))
+                        summary = _summary(content)
                 except OSError:
                     summary = None
             summaries.append({

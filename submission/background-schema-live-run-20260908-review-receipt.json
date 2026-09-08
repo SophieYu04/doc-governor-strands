@@ -1,0 +1,27 @@
+{
+  "authorization": {
+    "docs/SCHEMA.md": "f1765419aec73f1aa18598ab1c0be779f98ddb41bdb005b0e30a66ef35e5ff19"
+  },
+  "documents": [
+    {
+      "dependency_fingerprint": "7e4863da8fa5446d6a213be40d9eb18119cca910c99b1454f29b9e49e298b30e",
+      "path": "docs/SCHEMA.md",
+      "sha256": "22aa54761bef00e58ff84fcbd0ff03d40b4f2b9b4e8b3d2e7f4a5e4f8cd58886",
+      "verdict": "trusted"
+    }
+  ],
+  "evidence": [
+    {
+      "path": "schema.sql",
+      "sha256": "99feba6940d61900660fb1b32b96ea6db7c6a38124eae77fd929d9d49525df8a"
+    }
+  ],
+  "model_executed": true,
+  "reviewer": "codex:01a08139-0d57-7da2-9b57-432d264927f7",
+  "snapshot_id": "cf50c5d9987355469d27c93ae9418ddbdf6a14487a623d144d4223258a3d32b2",
+  "source_head": "a226f69842a53cc70dda197f5d5117f82d96ac7f",
+  "source_index_tree": "f9bb1953dab9667c72f12db641683deb57d796e3",
+  "verifier_command": "/private/tmp/docgov-background-venv/bin/python verify.py",
+  "verifier_output_sha256": "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d",
+  "version": 2
+}

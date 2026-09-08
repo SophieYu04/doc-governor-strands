@@ -49,15 +49,30 @@ Applying PR review, daily audit, or source reconciliation can regenerate `.docgo
 
 ### Commit-triggered source reconciliation
 
-Copy `.github/workflows/docgov-source-reconcile.yml` to reconcile generated Supabase inventory after a commit reaches `main`. It triggers only when a declared `**/supabase/config.toml` or `**/supabase/functions/**` path changes, runs the deterministic engine with the model disabled, and opens or updates one `docgov/source-reconcile` maintenance pull request when safe changes exist and the action succeeds. If the result is `action_required` or `blocked`, `action.yml` exits unsuccessfully and the subsequent maintenance-PR step is skipped, even if safe changes were made locally.
+Copy `.github/workflows/docgov-source-reconcile.yml` to reconcile generated Supabase inventory after a commit reaches `main`. Before using that file in another repository, replace its `uses: ./` step with `uses: SophieYu04/doc-governor@v0.3.0`, or vendor this repository's `action.yml` and installable Python package at that path. It triggers only when a declared `**/supabase/config.toml` or `**/supabase/functions/**` path changes, runs the deterministic engine with the model disabled, and opens or updates one `docgov/source-reconcile` maintenance pull request when safe changes exist and the action succeeds. If the result is `action_required` or `blocked`, `action.yml` exits unsuccessfully and the subsequent maintenance-PR step is skipped, even if safe changes were made locally.
 
 The reconciler derives Edge Function names and JWT flags from the checked-out commit's configuration and function source. When configured and source function inventories match and are nonempty, it can update eligible `docgov:supabase-inventory` markers, including after a revert that leaves functions present. If reverting the addition of the final function leaves both inventories empty, `engine.analyze` skips marker reconciliation entirely, including other inventory fields, so the earlier marker is not automatically restored. Only supported fields already present in a marker are reconciled. It stages only paths in Doc Governor's `modified_paths` result, including the ledger and trust table when they change.
 
 This reconciles source facts, not environment claims: a Git commit does not assert what is deployed to staging or production. Source/config mismatches block reconciliation; protected or ambiguous marker updates cannot be applied automatically. Missing markers are not created, and ordinary Markdown prose is not rewritten by this reconciler. Skipped reconciliation does not itself guarantee a blocked or stale verdict; other governance checks determine whether review is required.
 
-### Coding-agent repair before commit
+### Local background maintenance (first implementation slice)
 
-The shared `docgov repair --json` entry point repairs eligible documents before a commit. The tracked `.githooks/pre-commit` hook delegates to this command. Only staged changes to declared dependencies trigger the planner; unstaged source edits remain outside its snapshot. Protected documents and documents requiring human approval are never automatic repair targets.
+`docgov install --verify-command 'python3 -m unittest discover -v'` checks the local model, verifier, and Codex integration, saves existing hooks, and installs a worktree-specific hook chain. Install with Python 3.12+ and the `bedrock,mcp` extras. Initial owner configuration must already contain eligible `auto_repair_documents` contracts and a committed coding-review policy; automatic catalog discovery and initial authorization setup are not implemented yet.
+
+The worker scans declared dependencies, waits two seconds after a new content identity, and keeps per-document progress under `git rev-parse --git-path docgov`. It snapshots working bytes in isolation, including partially staged source edits, runs the Strands planner and configured repair executor, then invokes a separate read-only Codex reviewer. Publication checks source, document, index, and pinned authorization versions. The worker never stages. The commit integration stages only exact generated outputs whose source evidence matches the index; it otherwise leaves them for a later commit. Existing hooks keep their own exit behavior.
+
+Work resumes after restart. A failed phase retries only for classified transient errors, at most twice, after 5 and 20 seconds. Each isolated phase has a 60-second process deadline and a document has a 300-second processing budget. Persistent failures leave one private notice record and no new trust. Notice delivery to a user interface is still pending. On macOS, installation registers a per-user launchd service for restart and login recovery. Other systems currently start a detached process only; managed Linux workspace restart support remains pending.
+
+Codex project configuration registers the read-only MCP server and preserves existing developer instructions. Codex must already trust the project for that configuration to load; installation does not grant project trust or bypass Codex safeguards. See [the official MCP configuration documentation](https://learn.chatgpt.com/docs/extend/mcp?surface=cli). Only integrated readers are covered: this does not intercept other tools opening files directly. New review receipts use version 2 and bind the exact authorization content. The trust table records the catalog fingerprint; older tables lacking it are refused, rather than silently upgraded. A valid file read returns the exact bytes that were checked.
+
+This slice does **not** yet implement Bedrock-only PR repair, automatic dependency discovery, protected technical sections, new-product-decision intake, or the 20-change real-model acceptance benchmark. Existing PR workflows retain their previous behavior. Local repair tests use explicitly identified test doubles and are not evidence of live-model success or Firstgram release readiness.
+
+Live development evidence is recorded in [the background acceptance report](submission/background-maintenance-acceptance.json): fresh isolated schema changes completed in about 70 and 92 seconds with real Bedrock planning, Codex repair/review, and MCP readback. The latest run also made an ordinary follow-up Git commit, which staged only the verified schema, ledger, receipt, and trust artifacts; MCP remained usable afterwards. A separate Codex process read the new field over MCP using explicit runtime connection settings. An earlier run exposed a reviewer-lock recovery bug; it is retained as a failure, not counted as automatic success. Cost accounting, native temporary-project trust, Firstgram integration, and the full 20-change benchmark remain unverified.
+
+### Explicit staged repair (legacy-compatible)
+
+
+The shared `docgov repair --json` entry point repairs eligible documents before a commit. The uninstalled legacy `.githooks/pre-commit` hook delegates to this command; installed workspaces use background maintenance. Only staged changes to declared dependencies trigger the planner; unstaged source edits remain outside its snapshot. Protected documents and documents requiring human approval are never automatic repair targets.
 
 The read-only Strands Repair Planner on Amazon Bedrock receives each target and its changed declared sources. A missing, malformed, out-of-scope, or `needs_human` plan blocks execution. Codex is the default executor; `DOCGOV_REPAIR_COMMAND` may select another trusted local command accepting the plan on stdin. Commands come from local configuration, never from model output.
 
@@ -80,7 +95,7 @@ docgov repair --json
 # The same operation also runs before git commit.
 ```
 
-Use a restricted AWS identity with only the model invocation and short-lived sign-in permissions. The Bedrock extra includes `botocore[crt]`, which the AWS login credential provider requires. Affected commits fail closed when model access or the explicit verification command is unavailable; unaffected commits require no model call. `repair-prompt` remains the provider-neutral planning interface, but the repair hook requires a real model-backed plan and provides no skip or substitute-planner switch.
+Use a restricted AWS identity with only the model invocation and short-lived sign-in permissions. The Bedrock extra includes `botocore[crt]`, which the AWS login credential provider requires. In legacy hook mode, affected commits fail closed when model access or the explicit verification command is unavailable; unaffected commits require no model call. `repair-prompt` remains the provider-neutral planning interface, but the repair hook requires a real model-backed plan and provides no skip or substitute-planner switch.
 
 JSON reports `result`, `model_requested`, `model_used`, identifier-only `model_trace`, `source_head`, `staged_tree`, target documents, `modified_paths`, verification, and a sanitized error code. Requested execution is distinct from successful model execution: empty graphs and failed calls do not report model success. A completed model may still yield a rejected plan, so `model_used: true` alone does not prove successful repair. Save the JSON together with the reviewed staged diff for acceptance evidence; public traces exclude private document text.
 
@@ -118,38 +133,59 @@ On success, the coordinator writes `.docgov/reviews/<snapshot_id>.json` with the
 
 `engine.py` checks the current policy, latest verification entry, receipt hash, reviewer identity, document hash, and dependency fingerprint when validating a coding-agent review. In strict trust analysis, a revoked or mismatched review is untrusted for non-control documents; registered Catalog control documents take the bootstrap branch before this check. The MCP server remains read-only, with no write, shell, or network tool; it neither invokes this review nor grants approval, and its existing trust gate still controls document access. For a trust entry carrying a `codex:` verifier, `mcp_server.py` reloads the Catalog and calls `has_matching_coding_review` before allowing access, rechecking the current scoped receipt, ledger verification, and delegation policy without regenerating the trust table. Missing, invalid, or revoked proof refuses access. This additional check depends on the entry’s verifier field; older entries without it need trust-table regeneration to gain that check. TTL expiry is still evaluated during trust-table generation, not on each MCP read.
 
-`tests/test_coding_review.py` uses a fake Codex executable to cover receipt recording, prose/index preservation, policy scope, rejected verdicts and citations, missing model completion, verifier failure or mutation, partial staging, source races, and invalidation after source changes. These tests do not establish live Codex acceptance or prove the reviewed prose correct. This owner-authorized README edit remains untrusted until independent review; no real acceptance is claimed here.
+`tests/test_coding_review.py` uses a fake Codex executable to cover receipt recording, prose/index preservation, policy scope, rejected verdicts and citations, missing model completion, verifier failure or mutation, partial staging, source races, and invalidation after source changes. These tests do not establish live Codex acceptance or prove the reviewed prose correct. These test doubles are distinct from the live schema acceptance report above.
 
-**Why the recheck matters.** If a declared dependency changes the fingerprint relative to the loaded trust table, the next MCP recheck refuses the document without another Doc Governor run. A new commit alone need not change that fingerprint. The read is not atomic: content is read again after the hash check, so concurrent edits can race with serving it. Bootstrap controls still undergo these MCP hash checks; their strict-verification exemption does not establish reviewed prose truth.
+**Why the recheck matters.** If a declared dependency changes the fingerprint relative to the loaded trust table, the next MCP recheck refuses the document without another Doc Governor run. A new commit alone need not change that fingerprint. The document text is read once, hash-checked, and returned from that same in-memory value. Dependency and policy checks remain separate reads, not an atomic filesystem snapshot. Bootstrap controls still undergo these MCP hash checks; their strict-verification exemption does not establish reviewed prose truth.
 
 ## Quick start
 
 Requirements: Python 3.12+ and a GitHub repository. AWS credentials are required for the enabled Bedrock governance graph and repair planner. Strands supports Python 3.10+; the action uses Python 3.12 for a reproducible runtime. Install the `bedrock` extra to enable the PR governance graph and required-document Repair Planner.
 
 1. Add `.docgov/catalog.yaml` to your repository. `docgov init` can generate a proposal.
-2. Copy `.github/workflows/docgov-review.yml` from this repository. It checks out the PR head and executes `uses: ./`; `action.yml` installs and runs the Python package from that checkout. PR-controlled code therefore executes in the job. Workflow permissions request write and OIDC access; the supplied configuration enables apply, credential persistence, and the conditional AWS role exchange for same-repository PRs. Fork inputs disable apply and model use, but these settings are not an execution sandbox. The following standalone action example references a release instead of the supplied workflow’s local checkout:
+2. Copy `.github/workflows/docgov-review.yml` from this repository. Its checked-in `uses: ./` form is for this repository, where `action.yml` and the installable Python package are present in the checked-out PR. In another repository, replace that step with `uses: SophieYu04/doc-governor@v0.3.0` (as in the example below), or vendor both files at the local path. PR-controlled code therefore executes in the job. Workflow permissions request write and OIDC access; the supplied configuration enables apply, credential persistence, and the conditional AWS role exchange for same-repository PRs. Fork inputs disable apply and model use, but these settings are not an execution sandbox. The following standalone action example references a release instead of the supplied workflow’s local checkout:
 
 ```yaml
-name: Doc Governor
+name: Doc Governor review
+
 on:
   pull_request:
     types: [opened, synchronize, reopened, labeled]
+
 permissions:
   contents: write
   pull-requests: write
   checks: write
+  id-token: write
+
 jobs:
   govern:
+    if: github.event.action != 'labeled' || github.event.label.name == 'docgov-approved'
     runs-on: ubuntu-latest
+    timeout-minutes: 3
     steps:
-      - uses: SophieYu04/doc-governor@v0.3.0
+      - name: Check out PR as data
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
+      - name: Exchange GitHub OIDC token for the Bedrock role
+        if: github.event.pull_request.head.repo.full_name == github.repository && vars.DOCGOV_AWS_ROLE_ARN != '' && vars.DOCGOV_ENABLE_MODEL == 'true'
+        uses: aws-actions/configure-aws-credentials@61815dcd50bd041e203e49132bacad1fd04d2708 # v5.1.1
+        with:
+          role-to-assume: ${{ vars.DOCGOV_AWS_ROLE_ARN }}
+          aws-region: us-west-2
+      - name: Run Doc Governor
+        uses: SophieYu04/doc-governor@v0.3.0
         with:
           mode: review
           base_sha: ${{ github.event.pull_request.base.sha }}
           head_sha: ${{ github.event.pull_request.head.sha }}
           apply: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
           approved: ${{ github.event.action == 'labeled' && github.event.label.name == 'docgov-approved' }}
-          enable_model: true
+          enable_model: ${{ github.event.pull_request.head.repo.full_name == github.repository && vars.DOCGOV_AWS_ROLE_ARN != '' && vars.DOCGOV_ENABLE_MODEL == 'true' }}
+          aws_region: us-west-2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 ```
@@ -208,7 +244,7 @@ A trusted read:
 }
 ```
 
-Refusals explain the reason and offer source pointers or a canonical document when available. `read_instead` may be empty and `canonical_path` may be null: missing-state, rejected-path, and unknown-document responses supply neither alternative (unknown documents use `status: "unknown"`). Even known entries may lack pointers. For example, a dependency-change refusal with available source pointers looks like this:
+Refusals explain the reason and offer source pointers or a canonical document when available. `read_instead` may be empty and `canonical_path` may be null: rejected-path and unknown-document responses supply neither alternative (unknown documents use `status: "unknown"`). A missing or invalid trust table can still yield declared source pointers when the Catalog is readable. Even known entries may lack pointers. For example, a dependency-change refusal with available source pointers looks like this:
 
 ```json
 {
@@ -219,7 +255,7 @@ Refusals explain the reason and offer source pointers or a canonical document wh
   "reason": "A declared dependency of this document changed after it was verified, so its claims are unverified.",
   "read_instead": ["supabase/config.toml", "supabase/functions/health-check/index.ts"],
   "canonical_path": null,
-  "how_to_resolve": "A maintainer must re-verify this document and run `docgov baseline --approved`."
+  "how_to_resolve": "Read the source locations in read_instead. An installed background worker maintains documentation and verification; this read endpoint never repairs files."
 }
 ```
 
@@ -389,12 +425,13 @@ Supabase Markdown may include a machine-readable marker such as `<!-- docgov:sup
 
 ```mermaid
 flowchart LR
-  subgraph REPAIR["Commit-time repair path"]
-    C0["git commit"] --> I["Deterministic impact scan<br/>zero model tokens"]
+  subgraph REPAIR["Installed local background path"]
+    C0["Working source changes / git commit"] --> I["Private durable queue<br/>2-second quiet period"]
     I --> RP["Strands Repair Planner<br/>Amazon Nova Lite"]
     RP --> CE["Configured coding agent<br/>Codex by default"]
     CE --> V["Tests + deterministic verification"]
-    V --> ST["Stage repaired documents<br/>await independent trust review"]
+    V --> IR["Independent read-only Codex review"]
+    IR --> ST["Compare source + policy versions<br/>publish without staging"]
   end
   subgraph WRITE["Write path — pull request or daily audit"]
     A["GitHub PR or daily schedule"] --> B["Deterministic scan"]
@@ -428,7 +465,7 @@ Run the complete deterministic scenario locally:
 python scripts/demo.py
 ```
 
-The fixture simulates a coding agent adding an Edge Function, creating a duplicate API document, refreshing a State date without evidence, and changing protected public copy. Doc Governor synchronizes the source-backed API and Edge inventory, removes the duplicate, preserves the protected file, and returns `action_required` for the two human decisions.
+The fixture simulates a coding agent adding an Edge Function, creating a duplicate API document, refreshing a State date without evidence, and changing protected public copy. Doc Governor synchronizes the source-backed API and Edge inventory, removes the duplicate, preserves the protected file, and returns `action_required` for the protected edit. The date-only change is not a second PR blocker in this fixture because its diff also includes a ledger change; the later MCP read still refuses the stale release document.
 
 It then does the part that matters — it goes on to read through the supply layer:
 
@@ -436,7 +473,7 @@ It then does the part that matters — it goes on to read through the supply lay
 2. `get_document("docs/status/RELEASE.md")` is refused: no evidence backs its verification claim.
 3. `get_document("docs/architecture/API-notes.md")` is refused, but names the canonical document that absorbed it.
 4. **A dependency file’s contents change and the next read of the same trusted document is refused — with no Doc Governor run in between.** The fingerprint recheck caught it.
-5. The fixture simulates production Advisor evidence changing from the recorded promotion. `docgov drift` raises `environment_drift`, and `docs/status/PRODUCTION.md` flips from readable to refused as a consequence; this is not evidence that a real production deployment occurred or was validated.
+5. The fixture adds a simulated production-only Advisor finding and compares production evidence with staging; it does not record a release promotion. `docgov drift` raises `environment_drift`, and `docs/status/PRODUCTION.md` flips from readable to refused as a consequence; this is not evidence that a real production deployment occurred or was validated.
 
 Step 4 is the whole argument in one move: nothing re-ran, and the answer still changed.
 

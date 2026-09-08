@@ -1,0 +1,113 @@
+{
+  "version": 1,
+  "date": "2026-09-08",
+  "scope": "isolated SQLite source-schema demonstration; not Firstgram integration or deployment",
+  "initial_run": {
+    "elapsed_seconds": 124.28,
+    "jobs": [
+      {
+        "attempts": 2,
+        "elapsed": 115.97847633389756,
+        "error_code": "coding_review_failed",
+        "phase": "review",
+        "state": "failed"
+      }
+    ],
+    "live_model_requested": true,
+    "mcp_code": "not_usable",
+    "model_cost_usd": null,
+    "model_doubles_used": false,
+    "new_field_documented": false,
+    "source_head": "5350fcb64da355e4e9410baf08668f440d64265e",
+    "staged_paths": []
+  },
+  "defect_found": "A killed reviewer left an exclusive-create lock; retry failed. Replaced it with an OS-released advisory lock in private Git state.",
+  "fresh_run_after_fix": {
+    "elapsed_seconds": 70.44,
+    "jobs": [
+      {
+        "attempts": 0,
+        "elapsed": 67.27729241701309,
+        "error_code": null,
+        "phase": "publish",
+        "state": "complete"
+      }
+    ],
+    "live_model_requested": true,
+    "mcp_code": "ok",
+    "model_cost_usd": null,
+    "model_doubles_used": false,
+    "new_field_documented": true,
+    "source_head": "ac171f43a6003d4622d2d6e4ef02b41953c95911",
+    "staged_paths": []
+  },
+  "latest_implementation_run": {
+    "elapsed_seconds": 92.23,
+    "jobs": [
+      {
+        "attempts": 0,
+        "elapsed": 88.92287945793942,
+        "error_code": null,
+        "phase": "publish",
+        "state": "complete"
+      }
+    ],
+    "live_model_requested": true,
+    "mcp_code": "ok",
+    "model_doubles_used": false,
+    "new_field_documented": true,
+    "source_head": "a226f69842a53cc70dda197f5d5117f82d96ac7f",
+    "post_worker_commit": {
+      "head": "1e9489f",
+      "paths": [
+        ".docgov/ledger.jsonl",
+        ".docgov/reviews/cf50c5d9987355469d27c93ae9418ddbdf6a14487a623d144d4223258a3d32b2.json",
+        ".docgov/trust.json",
+        "docs/SCHEMA.md"
+      ],
+      "mcp_code_after_commit": "ok"
+    }
+  },
+  "retained_execution_evidence": [
+    "submission/background-schema-live-run-20260908.json",
+    "submission/background-schema-live-run-20260908-review-receipt.json"
+  ],
+  "independent_reviewer": "codex:01a07e91-fe2a-7243-972a-bb406db0adf9",
+  "receipt_version": 2,
+  "source_sha256": "99feba6940d61900660fb1b32b96ea6db7c6a38124eae77fd929d9d49525df8a",
+  "document_sha256": "22aa54761bef00e58ff84fcbd0ff03d40b4f2b9b4e8b3d2e7f4a5e4f8cd58886",
+  "next_codex_process": {
+    "configuration": "explicit MCP runtime settings matching installed server configuration; temporary project was not natively trusted",
+    "events": [
+      {
+        "type": "mcp_tool_call",
+        "server": "docgov",
+        "tool": "get_document",
+        "status": "in_progress"
+      },
+      {
+        "type": "mcp_tool_call",
+        "server": "docgov",
+        "tool": "get_document",
+        "status": "completed"
+      }
+    ],
+    "answer": "Trusted document served: Yes.\n`bio` nullable: Yes."
+  },
+  "model_cost_usd": null,
+  "cost_note": "Token and price accounting for the full chain is not implemented; no cost estimate is claimed.",
+  "firstgram": {
+    "source_assertion": "passed",
+    "source_head": "70e766eade96e5f55ac048d921bd95e5b75c61b7",
+    "integration_completed": false,
+    "reason": "Existing release controls do not define auto_repair_documents or delegated coding-review policy. Source assertion alone does not establish integration.",
+    "app_or_backend_deployed": false
+  },
+  "acceptance_limits": [
+    "One fresh successful live-model run is not a 20-change benchmark.",
+    "Native Codex project trust and macOS service installation were not exercised by this temporary demo.",
+    "The initial failed run required a code fix; it is not counted as automatic success.",
+    "No PR Bedrock-only repair, section-scoped protection, new-decision intake, or recorded video is claimed.",
+    "Implementation source fingerprint was not captured at live-run start; this is observational development evidence."
+  ]
+}

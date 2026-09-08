@@ -273,6 +273,19 @@ class StructuredOutputBoundaryTests(unittest.TestCase):
         budget._before_tool_call(event)
         self.assertIsNotNone(event.cancel_tool)
 
+    def test_rejected_tool_name_cannot_leak_into_public_trace(self):
+        from types import SimpleNamespace
+        from docgov.agents import _ToolBudget, EVIDENCE_AUDITOR
+        trace = []
+        budget = _ToolBudget(EVIDENCE_AUDITOR, "audit", trace)
+        private = "PRIVATE DOCUMENT TEXT"
+        event = SimpleNamespace(tool_use={"name": private}, cancel_tool=None)
+        budget._before_tool_call(event)
+        self.assertIsNotNone(event.cancel_tool)
+        self.assertNotIn(private, event.cancel_tool)
+        self.assertNotIn(private, json.dumps(trace))
+        self.assertEqual(trace, [{"event": "tool_denied", "name": "audit:unrecognized_tool"}])
+
     def test_structured_output_takes_precedence_over_untrusted_prose(self):
         from types import SimpleNamespace
         from docgov.agents import _result_text

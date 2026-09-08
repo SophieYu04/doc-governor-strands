@@ -1,0 +1,51 @@
+{
+  "version": 1,
+  "purpose": "Sanitized, reproducible execution evidence for the latest isolated background-maintenance acceptance run.",
+  "fixture": "/tmp/docgov-live-schema-staging-safe-20260908-rerun",
+  "source_change": {
+    "path": "schema.sql",
+    "sha256": "99feba6940d61900660fb1b32b96ea6db7c6a38124eae77fd929d9d49525df8a",
+    "head_after_developer_commit": "a226f69842a53cc70dda197f5d5117f82d96ac7f"
+  },
+  "worker_result": {
+    "raw_result_sha256": "ebebf93700128e8053ef6f913a9396251e9017d8b662ffe6cbce48085c4f5444",
+    "elapsed_seconds": 92.23,
+    "job": {
+      "state": "complete",
+      "phase": "publish",
+      "attempts": 0,
+      "elapsed": 88.92287945793942
+    },
+    "model_doubles_used": false
+  },
+  "independent_review_receipt": {
+    "path": "submission/background-schema-live-run-20260908-review-receipt.json",
+    "version": 2,
+    "reviewer": "codex:01a08139-0d57-7da2-9b57-432d264927f7",
+    "model_executed": true,
+    "document_path": "docs/SCHEMA.md",
+    "document_sha256": "22aa54761bef00e58ff84fcbd0ff03d40b4f2b9b4e8b3d2e7f4a5e4f8cd58886",
+    "dependency_fingerprint": "7e4863da8fa5446d6a213be40d9eb18119cca910c99b1454f29b9e49e298b30e",
+    "verifier_command": "/private/tmp/docgov-background-venv/bin/python verify.py",
+    "verifier_output_sha256": "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d"
+  },
+  "follow_up_commit": {
+    "head": "1e9489f1495429f12fcefed6e12487029f462367",
+    "paths": [
+      ".docgov/ledger.jsonl",
+      ".docgov/reviews/cf50c5d9987355469d27c93ae9418ddbdf6a14487a623d144d4223258a3d32b2.json",
+      ".docgov/trust.json",
+      "docs/SCHEMA.md"
+    ]
+  },
+  "independent_mcp_reader": {
+    "thread_id": "01a08149-a84c-7e81-bc3e-0ad25fda1f52",
+    "server": "docgov",
+    "tool": "get_document",
+    "path": "docs/SCHEMA.md",
+    "result_code": "ok",
+    "answer": "bio is nullable.",
+    "raw_transcript_sha256": "7ca796824095fb41f932efacd25b16300c060e0b2631289a5dbb7f4951931877",
+    "transcript_retention": "The raw transcript is deliberately not committed because its MCP result includes governed document text. This record retains its hash and only the tool metadata and final answer."
+  }
+}

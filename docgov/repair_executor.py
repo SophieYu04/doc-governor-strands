@@ -104,7 +104,8 @@ def _run(command: str, root: Path, prompt: str | None, timeout: int) -> None:
 def repair_staged(root: Path, *, catalog: str = ".docgov/catalog.yaml",
                   enable_model: bool = False, model_id: str | None = None,
                   executor_command: str | None = None, verify_command: str | None = None,
-                  planner_runner: Any = None, timeout: int = 900) -> dict[str, Any]:
+                  planner_runner: Any = None, timeout: int = 900,
+                  source_paths: list[str] | None = None, target_paths: set[str] | None = None) -> dict[str, Any]:
     result: dict[str, Any] = dict(result="blocked", changed=False, model_requested=enable_model,
                                   model_used=False, model_trace=[], modified_paths=[],
                                   verification="not_run")
@@ -117,7 +118,7 @@ def repair_staged(root: Path, *, catalog: str = ".docgov/catalog.yaml",
         tree = _git(root, "write-tree").strip().decode()
         staged = {x.decode() for x in _git(root, "diff", "--cached", "--name-only", "-z", "HEAD").split(b"\0") if x}
         result.update(source_head=head, staged_tree=tree)
-        if not staged:
+        if not staged and not source_paths:
             result.update(result="pass", verification="not_required")
             return result
         if catalog not in entries:
@@ -130,11 +131,16 @@ def repair_staged(root: Path, *, catalog: str = ".docgov/catalog.yaml",
             _git(isolated, "init", "-q")
             _git(isolated, "-c", "protocol.file.allow=always", "fetch", "--quiet", "--no-tags", str(root), head)
             _git(isolated, "checkout", "--quiet", "--detach", "FETCH_HEAD")
-            _git(isolated, "apply", "--index", "--binary", data=patch)
+            if patch:
+                _git(isolated, "apply", "--index", "--binary", data=patch)
             if _git(isolated, "write-tree").strip().decode() != tree:
                 raise RepairBlocked("snapshot_mismatch")
             snapshot = build_snapshot(isolated, isolated / catalog)
+            if source_paths is not None:
+                snapshot.changed = sorted(set(source_paths))
             candidates = repair_candidates(snapshot)
+            if target_paths is not None:
+                candidates = [record for record in candidates if record.path in target_paths]
             if not candidates:
                 result.update(result="pass", verification="not_required")
                 return result
@@ -153,7 +159,7 @@ def repair_staged(root: Path, *, catalog: str = ".docgov/catalog.yaml",
             trace: list[dict] = []
             try:
                 prompt = build_repair_prompt(snapshot, enable_model=True, model_id=model_id,
-                                             runner=planner_runner, trace=trace)
+                                             runner=planner_runner, trace=trace, target_paths=target_paths)
             except Exception as exc:
                 result.update(model_used=any(t.get("event") == "agent_complete" for t in trace), model_trace=trace)
                 raise RepairBlocked(model_error_code(exc)) from exc

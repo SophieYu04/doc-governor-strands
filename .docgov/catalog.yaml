@@ -37,6 +37,12 @@ documents:
   - .github/workflows/**
   - pyproject.toml
   - tests/**
+  - scripts/background_demo.py
+  - examples/background-schema/**
+  - submission/background-maintenance-acceptance.json
+  - submission/background-schema-live-run-20260908.json
+  - submission/background-schema-live-run-20260908-review-receipt.json
+  - scripts/demo.py
   approval: auto
   authority: canonical
 - path: examples/supabase-demo/docs/architecture/API.md
@@ -85,6 +91,14 @@ documents:
   authority: canonical
   environments:
   - production
+- path: examples/background-schema/docs/SCHEMA.md
+  type: contract
+  owner: maintainers
+  status: review_required
+  depends_on:
+  - examples/background-schema/schema.sql
+  approval: auto
+  authority: canonical
 policies:
   auto_remove_new_duplicates: true
   auto_repair_documents:

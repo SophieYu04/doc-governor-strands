@@ -1,0 +1,13 @@
+version: 1
+documents:
+  - path: docs/SCHEMA.md
+    type: contract
+    status: current
+    approval: auto
+    authority: canonical
+    depends_on:
+      - schema.sql
+policies:
+  auto_repair_documents:
+    - docs/SCHEMA.md
+  require_verification_ledger: true

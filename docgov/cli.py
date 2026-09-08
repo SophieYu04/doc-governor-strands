@@ -264,6 +264,16 @@ def main(argv: List[str] | None = None) -> int:
     parser.add_argument("--json", action="store_true", dest="as_json")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
+    install_parser = subparsers.add_parser("install")
+    install_parser.add_argument("--verify-command", required=True)
+    install_parser.add_argument("--executor-command")
+    install_parser.add_argument("--model-id")
+    install_parser.add_argument("--json", action="store_true", dest="sub_json")
+    worker_parser = subparsers.add_parser("worker")
+    worker_parser.add_argument("--once", action="store_true")
+    enqueue_parser = subparsers.add_parser("enqueue")
+    enqueue_parser.add_argument("--stage-ready", action="store_true")
+
     init_parser = subparsers.add_parser("init")
     init_parser.add_argument("--apply", action="store_true")
     init_parser.add_argument("--json", action="store_true", dest="sub_json")
@@ -392,6 +402,35 @@ def main(argv: List[str] | None = None) -> int:
     catalog_path = _catalog_path(root, args.catalog)
     ledger_path = _ledger_path(root, args.ledger)
     trust_state_path = _trust_state_path(root, args.trust_state)
+
+    if args.command in {"install", "worker", "enqueue"}:
+        from .background import Worker
+        from .install import install, enqueue
+        from .repair_executor import RepairBlocked
+        try:
+            if args.command == "install":
+                value = install(root, verify_command=args.verify_command,
+                                executor_command=args.executor_command, model_id=args.model_id)
+                print(json.dumps(value, sort_keys=True))
+            elif args.command == "worker":
+                worker = Worker(root)
+                try:
+                    worker.run(once=args.once)
+                finally:
+                    worker.db.close()
+            else:
+                enqueue(root)
+                if args.stage_ready:
+                    worker = Worker(root)
+                    try:
+                        worker.stage_ready()
+                    finally:
+                        worker.db.close()
+            return 0
+        except (RepairBlocked, OSError, ValueError) as exc:
+            print(json.dumps({"result": "blocked", "error_code": str(exc) if isinstance(exc, RepairBlocked)
+                              else "background_unavailable"}))
+            return 2
 
     if args.command == "coding-review":
         if args.catalog or args.ledger or args.trust_state:

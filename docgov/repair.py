@@ -35,8 +35,11 @@ def build_repair_prompt(
     model_id: Optional[str] = None,
     runner: Optional[RepairRunner] = None,
     trace: Optional[List[dict]] = None,
+    target_paths: Optional[set[str]] = None,
 ) -> str:
     candidates = repair_candidates(snapshot)
+    if target_paths is not None:
+        candidates = [record for record in candidates if record.path in target_paths]
     if not candidates:
         return ""
     planned = []

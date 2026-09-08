@@ -7,6 +7,7 @@ This is delegated judgement, not a mathematical proof of prose correctness.
 from __future__ import annotations
 
 import hashlib
+import fcntl
 import json
 import os
 import shlex
@@ -14,7 +15,7 @@ import subprocess
 import tempfile
 from pathlib import Path
 
-from .engine import build_snapshot, verification_record, dependency_evidence, has_matching_coding_review
+from .engine import build_snapshot, verification_record, dependency_evidence, has_matching_coding_review, review_authorization_fingerprint
 from .ledger import Ledger
 from .models import Evidence, GovernanceDecision
 from .repair_executor import RepairBlocked, _env, _files, _git, _index_entries, _working_signature
@@ -32,8 +33,7 @@ def review_documents(root: Path, paths: list[str], *, verify_command: str,
     root = root.resolve()
     decision = GovernanceDecision(run_id="coding-review", mode="coding-review",
                                   result="blocked", changed=False, model_requested=True)
-    lock = root / ".docgov/coding-review.lock"
-    locked = False
+    lock_fd = None
     try:
         if not paths or len(paths) != len(set(paths)) or not verify_command.strip():
             raise RepairBlocked("explicit_documents_and_verifier_required")
@@ -62,9 +62,12 @@ def review_documents(root: Path, paths: list[str], *, verify_command: str,
         decision.head_sha = head
         snapshot_id = _digest([head, tree, {k: [v[0], v[1]] if v else None for k, v in signature.items()}])
         decision.run_id = "coding-review-" + snapshot_id
-        fd = os.open(lock, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
-        os.close(fd)
-        locked = True
+        lock = Path(_git(root, "rev-parse", "--path-format=absolute", "--git-path", "docgov-review.lock").decode().strip())
+        lock_fd = os.open(lock, os.O_CREAT | os.O_RDWR, 0o600)
+        try:
+            fcntl.flock(lock_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError as exc:
+            raise RepairBlocked("review_locked") from exc
         with tempfile.TemporaryDirectory(prefix="docgov-review-") as directory:
             temp = Path(directory)
             isolated = temp / "repo"
@@ -179,7 +182,8 @@ def review_documents(root: Path, paths: list[str], *, verify_command: str,
                 if (current["new_hash"] != proof["new_hash"]
                         or current["dependency_fingerprint"] != proof["dependency_fingerprint"]):
                     raise RepairBlocked("source_changed_during_review")
-            receipt = {"version": 1, "snapshot_id": snapshot_id, "source_head": head,
+            receipt = {"version": 2,
+                       "authorization": {r.path: review_authorization_fingerprint(snapshot, r) for r in records}, "snapshot_id": snapshot_id, "source_head": head,
                        "source_index_tree": tree,
                        "reviewer": "codex:" + sessions[0], "model_executed": True,
                        "verifier_command": verify_command, "verifier_output_sha256": check_hash,
@@ -215,9 +219,11 @@ def review_documents(root: Path, paths: list[str], *, verify_command: str,
             decision.modified_paths = [receipt_name, ".docgov/ledger.jsonl"]
             if promoted:
                 decision.modified_paths.append(".docgov/catalog.yaml")
+    except subprocess.TimeoutExpired:
+        decision.error = "command_timeout"
     except (RepairBlocked, OSError, ValueError, KeyError, TypeError, subprocess.SubprocessError) as exc:
         decision.error = str(exc) if isinstance(exc, RepairBlocked) else "coding_review_failed"
     finally:
-        if locked:
-            lock.unlink(missing_ok=True)
+        if lock_fd is not None:
+            os.close(lock_fd)
     return decision

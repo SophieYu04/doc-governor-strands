@@ -838,10 +838,11 @@ class _ToolBudget:
     def _before_tool_call(self, event: Any) -> None:  # pragma: no cover - needs strands
         name = str(event.tool_use.get("name", ""))
         if name not in self.spec.tool_names:
-            event.cancel_tool = (
-                f"{self.spec.role} is not permitted to call {name!r}."
-            )
-            self.trace.append({"event": "tool_denied", "name": f"{self.node_id}:{name}"})
+            # ``name`` is model input.  Do not reflect it into a cancellation
+            # message or the public trace: a malicious model can use a fake
+            # tool name as a carrier for document text.
+            event.cancel_tool = f"{self.spec.role} is not permitted to call that tool."
+            self.trace.append({"event": "tool_denied", "name": f"{self.node_id}:unrecognized_tool"})
             return
         if name == "GovernanceOutput":
             if self.output_attempts >= 3:

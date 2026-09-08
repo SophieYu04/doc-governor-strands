@@ -6,6 +6,12 @@ if [ "${DOCGOV_REPAIR_ACTIVE:-}" = "1" ]; then
 fi
 root=$(git rev-parse --show-toplevel)
 cd "$root"
+state=$(git rev-parse --git-path docgov/config.json)
+if [ -f "$state" ]; then
+  # Installed background mode never waits for a model at commit time.
+  # The installation wrapper registers work and stages exact verified outputs.
+  exit 0
+fi
 docgov_bin=${DOCGOV_BIN:-}
 if [ -z "$docgov_bin" ]; then
   docgov_bin=$(git config --get docgov.binary || true)

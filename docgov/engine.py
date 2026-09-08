@@ -13,6 +13,7 @@ from typing import Dict, Iterable, List, Optional, Tuple
 from .catalog import Catalog
 from .drafting import apply_span, validate_draft
 from .git_tools import (
+    bytes_at_ref,
     changed_content,
     changed_paths,
     content_at_ref,
@@ -65,7 +66,7 @@ def markdown_files(root: Path, ref: Optional[str] = None) -> Dict[str, str]:
             continue
         path = root / relative
         if path.exists() and path.is_file():
-            result[relative] = path.read_text(encoding="utf-8")
+            result[relative] = path.read_bytes().decode("utf-8")
     return result
 
 
@@ -244,7 +245,7 @@ def _content_for_path(snapshot: RepositorySnapshot, relative_path: str) -> Optio
     if not absolute.exists() or not absolute.is_file():
         return None
     try:
-        return absolute.read_text(encoding="utf-8")
+        return absolute.read_bytes().decode("utf-8")
     except UnicodeDecodeError:
         return absolute.read_bytes().hex()
 
@@ -275,13 +276,17 @@ def dependency_evidence(
         for path in candidates
         if matches_repo_glob(path, pattern)
     }):
-        content = _content_for_path(snapshot, relative_path)
+        if snapshot.source_ref:
+            content = bytes_at_ref(snapshot.root, snapshot.source_ref, relative_path)
+        else:
+            path = snapshot.root / relative_path
+            content = path.read_bytes() if path.is_file() else None
         if content is None:
             continue
         evidence.append(Evidence(
             path=relative_path,
             kind="dependency",
-            sha256=sha256_text(content),
+            sha256=hashlib.sha256(content).hexdigest(),
         ))
     return evidence
 
@@ -361,6 +366,17 @@ def _status_scope(record: DocumentRecord) -> Tuple[str, str]:
     return "untrusted", f"Catalog status is {record.status!r}, not current."
 
 
+def review_authorization_fingerprint(snapshot: RepositorySnapshot, record: DocumentRecord) -> str:
+    policy_path = ".docgov/coding-agent-review-policy.json"
+    policy = (content_at_ref(snapshot.root, snapshot.source_ref, policy_path) if snapshot.source_ref
+              else (snapshot.root / policy_path).read_bytes().decode("utf-8"))
+    definition = record.to_dict()
+    # Trust review can promote status, but cannot change its own grant.
+    definition.pop("status", None)
+    definition.pop("last_verified_at", None)
+    return sha256_text(json.dumps([policy, definition, snapshot.catalog.policies], sort_keys=True))
+
+
 def has_matching_coding_review(snapshot: RepositorySnapshot, record: DocumentRecord) -> bool:
     """Recognize only a scoped, hash-bound delegated review, never blanket approval."""
     if not has_matching_verification_baseline(snapshot, record):
@@ -372,7 +388,7 @@ def has_matching_coding_review(snapshot: RepositorySnapshot, record: DocumentRec
             target = snapshot.root.resolve() / path
             if target.is_symlink() or any(p.is_symlink() for p in target.parents if p.is_relative_to(snapshot.root.resolve())):
                 raise ValueError("symlink")
-            return target.read_text()
+            return target.read_bytes().decode("utf-8")
         policy = json.loads(read(".docgov/coding-agent-review-policy.json"))
         if (policy.get("version") != 1 or policy.get("reviewer") != "coding_agent"
                 or policy.get("status") not in {"authorized_review_pending", "enabled"}
@@ -393,6 +409,10 @@ def has_matching_coding_review(snapshot: RepositorySnapshot, record: DocumentRec
         if sha256_text(raw) != evidence[0].get("sha256"):
             return False
         receipt = json.loads(raw)
+        if receipt.get("version") not in {1, 2}:
+            return False
+        if receipt.get("version") == 2 and receipt.get("authorization", {}).get(record.path) != review_authorization_fingerprint(snapshot, record):
+            return False
         if receipt.get("model_executed") is not True or receipt.get("reviewer") != baseline.get("verifier"):
             return False
         return any(item.get("path") == record.path and item.get("sha256") == baseline.get("new_hash")

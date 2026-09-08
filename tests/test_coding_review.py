@@ -94,6 +94,17 @@ if mode != 'empty_model': print(json.dumps({'type':'turn.completed','usage':{'ou
         result = self.review(verify_command=f'''{shlex.quote(sys.executable)} -c 'from pathlib import Path; Path("src/version.txt").write_text("2")' ''')
         self.assertEqual(result.error, "verifier_modified_snapshot")
 
+    def test_dead_reviewer_lock_file_does_not_block_recovery(self):
+        (self.root/'.git/docgov-review.lock').write_text('old process')
+        self.assertEqual(self.review().result,'changed')
+
+    def test_active_reviewer_lock_is_respected(self):
+        import fcntl
+        with (self.root/'.git/docgov-review.lock').open('w') as lock:
+            fcntl.flock(lock,fcntl.LOCK_EX | fcntl.LOCK_NB)
+            self.assertEqual(self.review().error,'review_locked')
+        self.assertEqual(self.review().result,'changed')
+
     def test_partial_staging_is_preserved(self):
         path = self.root / "docs/API.md"
         path.write_text("staged")
@@ -144,6 +155,16 @@ if mode != 'empty_model': print(json.dumps({'type':'turn.completed','usage':{'ou
         result = analyze_trust(build_snapshot(self.root, self.root / ".docgov/catalog.yaml"),
                                self.root / ".docgov/ledger.jsonl", requested_paths=["docs/API.md"])
         self.assertEqual(result.result, "action_required")
+
+    def test_policy_content_change_invalidates_version_two_receipt(self):
+        self.assertEqual(self.review().result, "changed")
+        receipt=json.loads(next((self.root/'.docgov/reviews').glob('*.json')).read_text())
+        self.assertEqual(receipt['version'],2)
+        path=self.root/'.docgov/coding-agent-review-policy.json'
+        policy=json.loads(path.read_text());policy['new_constraint']='source only';path.write_text(json.dumps(policy))
+        result=analyze_trust(build_snapshot(self.root,self.root/'.docgov/catalog.yaml'),
+                             self.root/'.docgov/ledger.jsonl',requested_paths=['docs/API.md'])
+        self.assertEqual(result.result,'action_required')
 
     def test_receipt_tampering_invalidates_trust(self):
         self.assertEqual(self.review().result, "changed")

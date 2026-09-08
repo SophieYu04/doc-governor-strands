@@ -104,6 +104,17 @@ class ActionContractTests(unittest.TestCase):
             self.assertEqual(result.stdout.splitlines()[-2:], ["repair", "--json"])
             self.assertFalse((root / ".docgov").exists())
 
+    def test_installed_precommit_does_not_wait_for_repair(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory)
+            subprocess.run(['git','init','-q'],cwd=root,check=True)
+            (root/'.git/docgov').mkdir()
+            (root/'.git/docgov/config.json').write_text('{}')
+            env=os.environ.copy();env.pop('DOCGOV_REPAIR_ACTIVE',None)
+            env['DOCGOV_BIN']='/nonexistent/model-command'
+            result=subprocess.run(['sh',str(ROOT/'.githooks/pre-commit')],cwd=root,env=env,capture_output=True)
+            self.assertEqual(result.returncode,0)
+
     def test_aws_templates_are_repository_scoped_and_cover_profile_destinations(self) -> None:
         trust = (ROOT / "infra/aws/github-oidc-trust-policy.json").read_text(encoding="utf-8")
         policy = (ROOT / "infra/aws/bedrock-inference-policy.json").read_text(encoding="utf-8")

@@ -111,6 +111,74 @@ class McpServerTests(unittest.TestCase):
 
     # ---- the happy path -------------------------------------------------
 
+    def test_removed_duplicate_keeps_canonical_pointer_without_reading_missing_file(self):
+        from docgov.trust_state import TrustEntry
+        value=json.loads(self.trust_state_path.read_text())
+        value['documents'].append(TrustEntry(
+            path='docs/architecture/API-notes.md',type='contract',usable=False,
+            scope='untrusted',reason='Merged into its canonical document.',
+            dependency_fingerprint='',content_sha256='',canonical_path='docs/architecture/API.md').to_dict())
+        self.trust_state_path.write_text(json.dumps(value))
+        response=self.supply().get_document('docs/architecture/API-notes.md')
+        self.assertEqual(response['code'],CODE_NOT_USABLE)
+        self.assertEqual(response['canonical_path'],'docs/architecture/API.md')
+        self.assertIsNone(response['content'])
+
+    def test_document_line_ending_change_invalidates_hash(self):
+        path=self.root/'docs/architecture/API.md'
+        path.write_bytes(path.read_bytes().replace(b'\n',b'\r\n'))
+        response=self.supply().get_document('docs/architecture/API.md')
+        self.assertEqual(response['code'],CODE_CONTENT_CHANGED)
+        self.assertIsNone(response['content'])
+
+    def test_source_line_ending_change_invalidates_hash(self):
+        path=self.root/'src/health.ts'
+        path.write_bytes(path.read_bytes().replace(b'\n',b'\r\n'))
+        response=self.supply().get_document('docs/architecture/API.md')
+        self.assertEqual(response['code'],CODE_DEPENDENCIES_CHANGED)
+        self.assertIsNone(response['content'])
+
+    def test_verification_hash_preserves_document_line_endings(self):
+        import hashlib
+        from docgov.engine import verification_record
+        path=self.root/'docs/architecture/API.md'
+        raw=path.read_bytes().replace(b'\n',b'\r\n')
+        path.write_bytes(raw)
+        snapshot=build_snapshot(self.root,self.catalog_path)
+        proof=verification_record(snapshot,snapshot.catalog.record_for('docs/architecture/API.md'))
+        self.assertEqual(proof['new_hash'],hashlib.sha256(raw).hexdigest())
+
+    def test_binary_dependency_does_not_collide_with_its_hex_text(self):
+        path=self.root/'src/data.bin'
+        path.write_bytes(b'\xff')
+        before=self.supply().current_dependencies('docs/architecture/API.md')[0]
+        path.write_bytes(b'ff')
+        after=self.supply().current_dependencies('docs/architecture/API.md')[0]
+        self.assertNotEqual(before,after)
+
+    def test_catalog_revocation_without_trust_rewrite_is_refused(self):
+        supply=self.supply()
+        self.assertEqual(supply.get_document('docs/architecture/API.md')['code'],'ok')
+        catalog=json.loads(self.catalog_path.read_text())
+        catalog['documents'][0]['status']='stale'
+        self.catalog_path.write_text(json.dumps(catalog))
+        response=supply.get_document('docs/architecture/API.md')
+        self.assertIsNone(response['content'])
+        self.assertNotEqual(response['code'],'ok')
+
+    def test_only_checked_bytes_are_returned(self):
+        from unittest.mock import patch
+        supply=self.supply()
+        original=supply.recheck
+        def mutate(entry, absolute, **kwargs):
+            result=original(entry,absolute,**kwargs)
+            absolute.write_text('UNVERIFIED SECRET')
+            return result
+        with patch.object(supply,'recheck',side_effect=mutate):
+            response=supply.get_document('docs/architecture/API.md')
+        self.assertEqual(response['content'],API_CONTENT)
+        self.assertNotIn('UNVERIFIED SECRET',json.dumps(response))
+
     def test_trusted_document_is_served(self) -> None:
         response = self.supply().get_document("docs/architecture/API.md")
         self.assertEqual(response["status"], "ok")

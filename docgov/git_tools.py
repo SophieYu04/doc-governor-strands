@@ -54,7 +54,7 @@ def untracked_paths(root: Path) -> List[str]:
     return sorted({line for line in output.splitlines() if line})
 
 
-def content_at_ref(root: Path, ref: str, relative_path: str) -> Optional[str]:
+def bytes_at_ref(root: Path, ref: str, relative_path: str) -> Optional[bytes]:
     try:
         result = subprocess.run(
             ["git", "show", f"{ref}:{relative_path}"],
@@ -65,10 +65,17 @@ def content_at_ref(root: Path, ref: str, relative_path: str) -> Optional[str]:
         )
     except (subprocess.CalledProcessError, FileNotFoundError):
         return None
+    return result.stdout
+
+
+def content_at_ref(root: Path, ref: str, relative_path: str) -> Optional[str]:
+    content = bytes_at_ref(root, ref, relative_path)
+    if content is None:
+        return None
     try:
-        return result.stdout.decode("utf-8")
+        return content.decode("utf-8")
     except UnicodeDecodeError:
-        return result.stdout.hex()
+        return content.hex()
 
 
 def changed_paths(root: Path, base: str | None, head: str | None) -> Tuple[List[str], List[str]]:
