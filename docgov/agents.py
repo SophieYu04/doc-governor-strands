@@ -571,6 +571,8 @@ class GraphOutcome:
     rulings: List[ConflictRuling] = field(default_factory=list)
     drafts: List[Tuple[DraftPatch, DraftValidation]] = field(default_factory=list)
     trace: List[Dict[str, str]] = field(default_factory=list)
+    missing_nodes: List[str] = field(default_factory=list)
+    tool_violations: bool = False
 
 
 def confine_model_finding(finding: Finding) -> Finding:
@@ -619,6 +621,23 @@ def rule(
         existing[(confined.kind, confined.action, tuple(confined.documents))] = confined
         findings.append(confined)
         return None
+
+    if outcome.missing_nodes or outcome.tool_violations:
+        missing_paths = sorted(set(outcome.missing_nodes))
+        if not missing_paths:
+            missing_paths = sorted(path for finding in baseline.findings for path in finding.documents)
+        add(Finding(
+            kind="model_execution",
+            risk="high",
+            action="block",
+            documents=missing_paths,
+            reason=(
+                "The governance model did not return a response for every assigned node."
+                if outcome.missing_nodes
+                else "The governance model attempted a disallowed or over-budget tool call."
+            ),
+            human_decision="Retry the governance run after the model session completes.",
+        ))
 
     for verdict in outcome.verdicts:
         if verdict.supported:
@@ -718,8 +737,12 @@ def rule(
         changed=False,
         findings=findings,
         head_sha=baseline.head_sha,
-        model_used=True,
-        model_trace=outcome.trace + [{"event": "model_complete", "name": model_id}],
+        model_used=not (outcome.missing_nodes or outcome.tool_violations),
+        model_trace=outcome.trace + ([{"event": "model_complete", "name": model_id}]
+                                     if not (outcome.missing_nodes or outcome.tool_violations) else
+                                     [{"event": "model_incomplete", "name": (
+                                         "missing_response" if outcome.missing_nodes else "tool_violation"
+                                     )}]),
     )
 
 
@@ -738,6 +761,13 @@ def interpret(
 ) -> GraphOutcome:
     """Validate every raw response. A schema violation fails closed for the whole run."""
     outcome = GraphOutcome()
+    expected: List[Tuple[str, Tuple[str, ...]]] = [
+        *((node.node_id, (node.path,)) for node in plan.audits),
+        *((node.node_id, tuple(node.paths)) for node in plan.conflicts),
+    ]
+    outcome.missing_nodes = [
+        path for node_id, paths in expected if node_id not in responses for path in paths
+    ]
     for node in plan.audits:
         raw = responses.get(node.node_id)
         if raw is None:
@@ -755,10 +785,11 @@ def interpret(
     unsupported = {verdict.path for verdict in outcome.verdicts if not verdict.supported}
     for node in plan.drafts:
         raw = responses.get(node.node_id)
-        if raw is None:
-            continue
         if node.path not in unsupported:
             # The Drafter only ever acts on a document the Auditor faulted.
+            continue
+        if raw is None:
+            outcome.missing_nodes.append(node.path)
             continue
         draft = parse_draft_patch(parse_json_object(raw), expected_path=node.path)
         if draft is None:
@@ -808,6 +839,10 @@ def run_graph(
     responses, trace = execute(plan)
     outcome = interpret(snapshot, plan, responses)
     outcome.trace = trace
+    outcome.tool_violations = any(
+        event.get("event") in {"tool_denied", "tool_budget_exceeded"}
+        for event in trace
+    )
     return rule(snapshot, baseline, outcome, model_id=resolved_model)
 
 

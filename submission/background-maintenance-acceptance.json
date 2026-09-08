@@ -56,6 +56,7 @@
     "mcp_code": "ok",
     "model_doubles_used": false,
     "new_field_documented": true,
+    "evidence_scope": "Observed live-model path outcome; retained receipt and sanitized hashes do not independently audit every Bedrock planner, Codex repair, or temporary commit provider event.",
     "source_head": "a226f69842a53cc70dda197f5d5117f82d96ac7f",
     "post_worker_commit": {
       "head": "1e9489f",

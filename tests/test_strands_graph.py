@@ -26,7 +26,7 @@ from typing import Any, AsyncIterable, Dict, List, Optional
 from unittest.mock import patch
 
 from docgov.agent import govern
-from docgov.agents import plan_graph, strands_runner
+from docgov.agents import plan_graph, run_graph, strands_runner
 from docgov.engine import analyze, build_snapshot
 
 try:  # the graph only exists when the bedrock extra is installed
@@ -206,6 +206,41 @@ class StrandsGraphSmokeTests(unittest.TestCase):
         self.assertIn(audit_id, responses)
         self.assertEqual(json.loads(responses[audit_id])["supported"], False)
         self.assertIn({"event": "agent_complete", "name": audit_id}, trace)
+
+    def test_missing_model_response_blocks_and_is_not_reported_as_model_success(self) -> None:
+        decision = run_graph(
+            self.snapshot,
+            self.baseline,
+            model_id="stub-model",
+            runner=lambda _plan: ({}, []),
+        )
+        self.assertEqual(decision.result, "action_required")
+        self.assertFalse(decision.model_used)
+        self.assertTrue(any(finding.kind == "model_execution" for finding in decision.findings))
+        self.assertNotIn({"event": "model_complete", "name": "stub-model"}, decision.model_trace)
+
+    def test_disallowed_tool_attempt_blocks_even_when_a_verdict_exists(self) -> None:
+        plan = plan_graph(self.snapshot, self.baseline)
+        audit_id = plan.audits[0].node_id
+        decision = run_graph(
+            self.snapshot,
+            self.baseline,
+            model_id="stub-model",
+            runner=lambda _plan: (
+                {audit_id: json.dumps({
+                    "path": "docs/architecture/API.md",
+                    "supported": True,
+                    "confidence": "high",
+                    "unsupported_claims": [],
+                    "reason": "The synthetic evidence supports this document.",
+                })},
+                [{"event": "tool_denied", "name": "audit:unrecognized_tool"}],
+            ),
+        )
+        self.assertEqual(decision.result, "action_required")
+        self.assertFalse(decision.model_used)
+        self.assertTrue(any(finding.kind == "model_execution" for finding in decision.findings))
+        self.assertNotIn({"event": "model_complete", "name": "stub-model"}, decision.model_trace)
 
     def test_the_tool_budget_hook_records_a_real_tool_call(self) -> None:
         _, trace = self.run_real_graph()

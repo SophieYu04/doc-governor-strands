@@ -5,7 +5,7 @@
     {
       "canonical_path": null,
       "content_sha256": "fdb0623549767c7626ade41279725741f07b074255435ccb0ec345a5b96b317f",
-      "dependency_fingerprint": "6654585586bb3858b3fa17da0d8db6d765a4e3708da14e59f30ee9ddb34fd159",
+      "dependency_fingerprint": "30abd0e16f80f7c7cf51bf1f2b59c1c7a004079b47d3181ab7c7ffc53fafa16b",
       "head_sha": "ca95ff5bcf89f55e92c37361cadca4a0545a3e2e",
       "path": "AGENTS.md",
       "reason": "Governance control document is readable so the trust gate can bootstrap.",
@@ -48,9 +48,9 @@
     },
     {
       "canonical_path": null,
-      "content_sha256": "1007d82fec1531c7ba14db8c80f9786ab7b71aba8aa52dd04163bd84bd0f3ce1",
-      "dependency_fingerprint": "7720cdf7cba3c5316d9a4ca3ea46a9233e0ed78f8bce5140859cecc1456aad83",
-      "head_sha": "9661b54dd82ae38a266ae47cdcc149b6d1373932",
+      "content_sha256": "35eb6c69b72b7e1f59bc7bff83cf186dbb93e31ac5cf867aeb21e0f92e65067f",
+      "dependency_fingerprint": "b1693403faf3a4c6464872d067676ead8166978ba9cd940c8135768c4ca8e877",
+      "head_sha": "61f74f8baba86fece70e307b28852208be44fa17",
       "path": "README.md",
       "reason": "The document is current and its recorded evidence still matches.",
       "scope": "current_fact",
@@ -112,8 +112,8 @@
       ],
       "type": "contract",
       "usable": true,
-      "verified_at": "2026-09-08T13:57:01Z",
-      "verifier": "codex:01a0814c-e36d-7321-9e35-290ec972d2c0"
+      "verified_at": "2026-09-08T14:47:01Z",
+      "verifier": "codex:01a0817a-9732-7421-b418-0f32d46ba650"
     },
     {
       "canonical_path": null,
