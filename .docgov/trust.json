@@ -48,9 +48,9 @@
     },
     {
       "canonical_path": null,
-      "content_sha256": "35eb6c69b72b7e1f59bc7bff83cf186dbb93e31ac5cf867aeb21e0f92e65067f",
+      "content_sha256": "d55fc624c146073d3ae970e9e8d4590e5b4d685af1bef872b4ea5f4b22175e4b",
       "dependency_fingerprint": "b1693403faf3a4c6464872d067676ead8166978ba9cd940c8135768c4ca8e877",
-      "head_sha": "61f74f8baba86fece70e307b28852208be44fa17",
+      "head_sha": "4242aa1f0a8ad956df855783866b8e3b82df1808",
       "path": "README.md",
       "reason": "The document is current and its recorded evidence still matches.",
       "scope": "current_fact",
@@ -112,8 +112,8 @@
       ],
       "type": "contract",
       "usable": true,
-      "verified_at": "2026-09-08T14:47:01Z",
-      "verifier": "codex:01a0817a-9732-7421-b418-0f32d46ba650"
+      "verified_at": "2026-09-08T14:52:01Z",
+      "verifier": "codex:01a0817f-1ee3-7b63-8656-91f6f3168eee"
     },
     {
       "canonical_path": null,

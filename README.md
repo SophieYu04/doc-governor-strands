@@ -49,7 +49,7 @@ Applying PR review, daily audit, or source reconciliation can regenerate `.docgo
 
 ### Commit-triggered source reconciliation
 
-Copy `.github/workflows/docgov-source-reconcile.yml` to reconcile generated Supabase inventory after a commit reaches `main`. Before using that file in another repository, replace its `uses: ./` step with `uses: SophieYu04/doc-governor-strands@61f74f8`, or vendor this repository's `action.yml` and installable Python package at that path. It triggers only when a declared `**/supabase/config.toml` or `**/supabase/functions/**` path changes, runs the deterministic engine with the model disabled, and opens or updates one `docgov/source-reconcile` maintenance pull request when safe changes exist and the action succeeds. If the result is `action_required` or `blocked`, `action.yml` exits unsuccessfully and the subsequent maintenance-PR step is skipped, even if safe changes were made locally.
+Copy `.github/workflows/docgov-source-reconcile.yml` to reconcile generated Supabase inventory after a commit reaches `main`. Before using that file in another repository, replace its `uses: ./` step with `uses: SophieYu04/doc-governor-strands@4242aa1f0a8ad956df855783866b8e3b82df1808`, or vendor this repository's `action.yml` and installable Python package at that path. It triggers only when a declared `**/supabase/config.toml` or `**/supabase/functions/**` path changes, runs the deterministic engine with the model disabled, and opens or updates one `docgov/source-reconcile` maintenance pull request when safe changes exist and the action succeeds. If the result is `action_required` or `blocked`, `action.yml` exits unsuccessfully and the subsequent maintenance-PR step is skipped, even if safe changes were made locally.
 
 The reconciler derives Edge Function names and JWT flags from the checked-out commit's configuration and function source. When configured and source function inventories match and are nonempty, it can update eligible `docgov:supabase-inventory` markers, including after a revert that leaves functions present. If reverting the addition of the final function leaves both inventories empty, `engine.analyze` skips marker reconciliation entirely, including other inventory fields, so the earlier marker is not automatically restored. Only supported fields already present in a marker are reconciled. It stages only paths in Doc Governor's `modified_paths` result, including the ledger and trust table when they change.
 
@@ -142,7 +142,7 @@ On success, the coordinator writes `.docgov/reviews/<snapshot_id>.json` with the
 Requirements: Python 3.12+ and a GitHub repository. AWS credentials are required for the enabled Bedrock governance graph and repair planner. Strands supports Python 3.10+; the action uses Python 3.12 for a reproducible runtime. Install the `bedrock` extra to enable the PR governance graph and required-document Repair Planner.
 
 1. Add `.docgov/catalog.yaml` to your repository. `docgov init` can generate a proposal.
-2. Copy `.github/workflows/docgov-review.yml` from this repository. Its checked-in `uses: ./` form is for this repository, where `action.yml` and the installable Python package are present in the checked-out PR. In another repository, replace that step with `uses: SophieYu04/doc-governor-strands@61f74f8` (as in the example below), or vendor both files at the local path. PR-controlled code therefore executes in the job. Workflow permissions request write and OIDC access; the supplied configuration enables apply, credential persistence, and the conditional AWS role exchange for same-repository PRs. Fork inputs disable apply and model use, but these settings are not an execution sandbox. The following standalone action example references a release instead of the supplied workflow’s local checkout:
+2. Copy `.github/workflows/docgov-review.yml` from this repository. Its checked-in `uses: ./` form is for this repository, where `action.yml` and the installable Python package are present in the checked-out PR. In another repository, replace that step with `uses: SophieYu04/doc-governor-strands@4242aa1f0a8ad956df855783866b8e3b82df1808` (as in the example below), or vendor both files at the local path. PR-controlled code therefore executes in the job. Workflow permissions request write and OIDC access; the supplied configuration enables apply, credential persistence, and the conditional AWS role exchange for same-repository PRs. Fork inputs disable apply and model use, but these settings are not an execution sandbox. The following standalone action example references a release instead of the supplied workflow’s local checkout:
 
 ```yaml
 name: Doc Governor review
@@ -177,7 +177,7 @@ jobs:
           role-to-assume: ${{ vars.DOCGOV_AWS_ROLE_ARN }}
           aws-region: us-west-2
       - name: Run Doc Governor
-        uses: SophieYu04/doc-governor-strands@61f74f8
+        uses: SophieYu04/doc-governor-strands@4242aa1f0a8ad956df855783866b8e3b82df1808
         with:
           mode: review
           base_sha: ${{ github.event.pull_request.base.sha }}
