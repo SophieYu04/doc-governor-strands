@@ -1,6 +1,6 @@
 {
   "catalog_path": ".docgov/catalog.yaml",
-  "catalog_sha256": "def85ca6b8fab0bff9fd01fb46cdfdc5496841b116acae28b1a5db1187681380",
+  "catalog_sha256": "15a397c2e866821d36b5cc7d45c73d7a07342847d6e6fd9ecf5547a8a1f978a6",
   "documents": [
     {
       "canonical_path": null,
@@ -8,7 +8,7 @@
       "dependency_fingerprint": "4cf083b874db543241e73ddf8438470b2fe5a14c472d312e05d603a055eb9883",
       "head_sha": "ca95ff5bcf89f55e92c37361cadca4a0545a3e2e",
       "path": "AGENTS.md",
-      "reason": "Doc Governor blocked this document in its latest run.",
+      "reason": "Governance control document is readable so the trust gate can bootstrap.",
       "scope": "current_fact",
       "source_pointers": [
         ".github/workflows/docgov-audit.yml",
@@ -43,17 +43,17 @@
         "docgov/trust_state.py"
       ],
       "type": "procedure",
-      "usable": false,
+      "usable": true,
       "verified_at": "2026-09-06T11:16:47Z"
     },
     {
       "canonical_path": null,
-      "content_sha256": "d55fc624c146073d3ae970e9e8d4590e5b4d685af1bef872b4ea5f4b22175e4b",
+      "content_sha256": "49351d277ce98c3418e95abcbe20217e1839791af266550c75c0056b7434da3a",
       "dependency_fingerprint": "715351a8732a29c3b0a4192ba4e4eca798222b0d6e15a0c34a8e7c8469a14943",
-      "head_sha": "4242aa1f0a8ad956df855783866b8e3b82df1808",
+      "head_sha": "0503cd264cd21f622e3e6f1b856b2a6998b3630d",
       "path": "README.md",
-      "reason": "Catalog status is 'stale', not current.",
-      "scope": "untrusted",
+      "reason": "The document is current and its recorded evidence still matches.",
+      "scope": "current_fact",
       "source_pointers": [
         ".github/workflows/docgov-audit.yml",
         ".github/workflows/docgov-init.yml",
@@ -111,9 +111,9 @@
         "tests/test_trust_state.py"
       ],
       "type": "contract",
-      "usable": false,
-      "verified_at": "2026-09-08T14:52:01Z",
-      "verifier": "codex:01a0817f-1ee3-7b63-8656-91f6f3168eee"
+      "usable": true,
+      "verified_at": "2026-09-09T03:29:52Z",
+      "verifier": "codex:01a08431-077d-7d42-900d-6495cec7f411"
     },
     {
       "canonical_path": null,

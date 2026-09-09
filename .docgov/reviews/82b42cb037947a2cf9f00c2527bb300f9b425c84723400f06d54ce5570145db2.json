@@ -1,0 +1,167 @@
+{
+  "authorization": {
+    "README.md": "c8268b9f9fac06773252f1fe8057b14e7950c7dd789d8936d8041b833c4e444a"
+  },
+  "documents": [
+    {
+      "dependency_fingerprint": "715351a8732a29c3b0a4192ba4e4eca798222b0d6e15a0c34a8e7c8469a14943",
+      "path": "README.md",
+      "sha256": "49351d277ce98c3418e95abcbe20217e1839791af266550c75c0056b7434da3a",
+      "verdict": "trusted"
+    }
+  ],
+  "evidence": [
+    {
+      "path": ".github/workflows/docgov-audit.yml",
+      "sha256": "ff7d2034eab6032bb4c66a4e704aa19a92d195f66d44c76827b25b6f8a79e43c"
+    },
+    {
+      "path": ".github/workflows/docgov-review.yml",
+      "sha256": "06518c23b0119f5397c2835ee2b9b922cdd890be2f2efef025dd9c46c90e6754"
+    },
+    {
+      "path": ".github/workflows/docgov-source-reconcile.yml",
+      "sha256": "6330989a53638d16ddbe93ffa922057bc4cdd6a9daf6423947af457f2d208948"
+    },
+    {
+      "path": ".github/workflows/test.yml",
+      "sha256": "44eee978a16a0271083d04e6527f07eb1242ae8e37e19849a5a2b9d7a9a15b44"
+    },
+    {
+      "path": "action.yml",
+      "sha256": "d3545c2dedca7ab27736d747dac17369e3928603f90b670ad37667d9b2cd6b81"
+    },
+    {
+      "path": "docgov/agents.py",
+      "sha256": "c3fd523edb463468a35c1538a986c8118ed3af4a6ebfaf99ffe3b32afaffaf5a"
+    },
+    {
+      "path": "docgov/background.py",
+      "sha256": "ff5d82739972c0422254a4d8ff9fe7f546551aa36b1b6462d4df15c6697ea4e8"
+    },
+    {
+      "path": "docgov/cli.py",
+      "sha256": "701b38e6b7aa48b67191458cc124f271d521c6355e65604fe16291b3222c2a56"
+    },
+    {
+      "path": "docgov/coding_review.py",
+      "sha256": "4db6d68e27436f63e72719a93817cda385681a5898a30e174d4152224c43676a"
+    },
+    {
+      "path": "docgov/drafting.py",
+      "sha256": "81ba13070dd4b1761f2bcc74a53b7261ab7979d1eee85ae7912a374f76165290"
+    },
+    {
+      "path": "docgov/engine.py",
+      "sha256": "cd61fd25749c3ff76d8be995428c73f19a07243327bb237cbe773e880bd7c2f7"
+    },
+    {
+      "path": "docgov/github.py",
+      "sha256": "69104b11cb8b292419c51577a1e03d9d4037cf8aec0a717fbf46ac0ce07cbfd9"
+    },
+    {
+      "path": "docgov/install.py",
+      "sha256": "e15f6faee507ab1cb5ba2085da61a36bc01b887be383886dc17713bca71dfa75"
+    },
+    {
+      "path": "docgov/mcp_server.py",
+      "sha256": "7c337e2ad22ecec409f3d51a4ff0688ce35eb9f74170a0148295e02abcc7eac7"
+    },
+    {
+      "path": "docgov/repair_agents.py",
+      "sha256": "2cc783c9963dfde8248744710254c951627c48a88f20396d1b15d8d0eb557e7f"
+    },
+    {
+      "path": "docgov/repair_executor.py",
+      "sha256": "41443574bf2fd1cc27c4c56cd7929edad46d2a5b8f00001e7dd839428e966042"
+    },
+    {
+      "path": "docgov/supabase_remote.py",
+      "sha256": "dbf3f1591e087304be97105a2db22075cf257ce6f35eb4e6febb9990e9f7c14a"
+    },
+    {
+      "path": "docgov/trust_state.py",
+      "sha256": "c2af2bd956d1f508170b14e0abf0385fae96cd49c0ce8d30e99f937afa18cbed"
+    },
+    {
+      "path": "examples/background-schema/schema.sql",
+      "sha256": "4b471f26cc718dcb9efe26721bf5ae5c0adc3af0899770566de0f40096d7b41f"
+    },
+    {
+      "path": "examples/background-schema/verify.py",
+      "sha256": "f0b776340929c0ff2b415b33bd425fae76174b351dd5b5c58513db7648ca1a3c"
+    },
+    {
+      "path": "pyproject.toml",
+      "sha256": "59b2d91596ab84681c176381ba969104423361da81616c35d7ec5eb76322990d"
+    },
+    {
+      "path": "scripts/background_demo.py",
+      "sha256": "0928777feec2fb6740d90e8e60b33e52f428932bc3d40e635ae6e954ff2d004f"
+    },
+    {
+      "path": "scripts/demo.py",
+      "sha256": "e11dd82728fd2c0e919ef7ce62dad95a6dcd992db80df2336a7feb3ca52eefb3"
+    },
+    {
+      "path": "submission/background-maintenance-acceptance.json",
+      "sha256": "0d88c0b6b229ae33ab5223a1f3fe46859cba5d93a97fe866b9e556525e5f170c"
+    },
+    {
+      "path": "submission/background-schema-live-run-20260908-review-receipt.json",
+      "sha256": "47421de3d165aec6f0790d9dbdea68e4534f072571dbefae436d87c16040cc46"
+    },
+    {
+      "path": "submission/background-schema-live-run-20260908.json",
+      "sha256": "6abd8225fc06d8937b731ebd4ab1b17d3956766d1d4e2dfe4d8517abe4f98873"
+    },
+    {
+      "path": "tests/test_action_contract.py",
+      "sha256": "727da9869cdb408207406d8579654fcb963afe2d8a089708d41a1ca282d5d993"
+    },
+    {
+      "path": "tests/test_agent.py",
+      "sha256": "38449e62151fdf5aa4d905b4f568cdd9493f92ad95b0827f21219721e1a6e525"
+    },
+    {
+      "path": "tests/test_background.py",
+      "sha256": "e6a626c83a2343f9338b98b387f09c9a93a2f69f612086e4abbf829fde20f7e4"
+    },
+    {
+      "path": "tests/test_coding_review.py",
+      "sha256": "76df4c8a736f8ec9d694cf3e82c8d9131c4da52104a8db07979cfda32d6e1762"
+    },
+    {
+      "path": "tests/test_engine.py",
+      "sha256": "a79dc628a39379626e77b51ea9de5a50eff9cd61e832cfb6939f7de8d019138a"
+    },
+    {
+      "path": "tests/test_mcp_server.py",
+      "sha256": "923e9acb5e2c6e257e7938a23e44b08e5a8c4c27afd867c13d063aa585e7837d"
+    },
+    {
+      "path": "tests/test_repair_executor.py",
+      "sha256": "9a8e420e68674fc17b3798948980f4e82b779cb5a4a1b9a4d218222515fe8dcb"
+    },
+    {
+      "path": "tests/test_strands_graph.py",
+      "sha256": "2e28c8bad3f33fcec68a3925f5dcf547c22a13951491bf2e6c62d6e2a51e3e79"
+    },
+    {
+      "path": "tests/test_supabase_remote.py",
+      "sha256": "185983f97a22e36f0979803f7ed15a664415edfc4eb064ad9d9ef24e642730d8"
+    },
+    {
+      "path": "tests/test_trust_state.py",
+      "sha256": "170d9bf5fffc28a8157dcdfbce92ca4d33d3f8d0a44da3f8b71c408c4d2a843b"
+    }
+  ],
+  "model_executed": true,
+  "reviewer": "codex:01a08431-077d-7d42-900d-6495cec7f411",
+  "snapshot_id": "82b42cb037947a2cf9f00c2527bb300f9b425c84723400f06d54ce5570145db2",
+  "source_head": "0503cd264cd21f622e3e6f1b856b2a6998b3630d",
+  "source_index_tree": "9877a3d71d872b5dcc576e8f5792b77065d9394a",
+  "verifier_command": "/Users/sophie/.local/share/firstgram-docgov/venv/bin/python -m unittest tests.test_action_contract tests.test_mcp_server",
+  "verifier_output_sha256": "87e9352d1ed40218a08d949f17f273d023516739e71cf42d12e487da0366e8ef",
+  "version": 2
+}
