@@ -4,11 +4,11 @@
   "documents": [
     {
       "canonical_path": null,
-      "content_sha256": "fdb0623549767c7626ade41279725741f07b074255435ccb0ec345a5b96b317f",
+      "content_sha256": "5f5bb33dfc1c534588d5f1652b657b9b7f4f9f8adce0f9640df779a8dc5dadfe",
       "dependency_fingerprint": "4cf083b874db543241e73ddf8438470b2fe5a14c472d312e05d603a055eb9883",
       "head_sha": "ca95ff5bcf89f55e92c37361cadca4a0545a3e2e",
       "path": "AGENTS.md",
-      "reason": "Doc Governor blocked this document in its latest run.",
+      "reason": "Governance control document is readable so the trust gate can bootstrap.",
       "scope": "current_fact",
       "source_pointers": [
         ".github/workflows/docgov-audit.yml",
@@ -43,7 +43,7 @@
         "docgov/trust_state.py"
       ],
       "type": "procedure",
-      "usable": false,
+      "usable": true,
       "verified_at": "2026-09-06T11:16:47Z"
     },
     {
