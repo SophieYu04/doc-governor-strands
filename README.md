@@ -6,16 +6,16 @@ AI coding agents treat repository documents as memory. When that memory is stale
 
 Doc Governor is a professional agent for software teams. It handles the repetitive work around human judgment: keeping source-backed documentation current, checking evidence, and preventing an agent from reading a document after its supporting source has changed.
 
-## See it in five minutes
+## Run the public fixture
 
-The public fixture is synthetic and needs no AWS credentials, private repository access, or database connection.
+The public fixture is synthetic and needs no AWS credentials, private repository access, or database connection. It requires Python 3.12 or newer.
 
 ```sh
 git clone https://github.com/SophieYu04/doc-governor-strands.git
 cd doc-governor-strands
 python3 -m venv .venv
 source .venv/bin/activate
-python -m pip install -e '.[dev,mcp]'
+python -m pip install -e '.[bedrock,dev,mcp]'
 
 # Repair, trust, and read the fixture through the real MCP stdio server.
 python scripts/demo.py --mcp-stdio --keep
@@ -40,22 +40,21 @@ The decisive check is simple: a trusted document becomes unreadable as soon as o
 ## Three enforcement points
 
 ```text
-BEFORE COMMIT                 PULL-REQUEST REVIEW             EVERY AGENT READ
+SOURCE CHANGE / BACKGROUND     PULL-REQUEST REVIEW             EVERY AGENT READ
 source change + hashes        deterministic scan               get_document(path)
         │                     + optional Strands graph                 │
         ▼                              │                                ▼
-Strands Repair Planner               ▼                         trust gate + live hashes
-(Amazon Nova Lite)          deterministic ruling                ├─ pass: return bytes
-        │                    + ledger + trust table              └─ fail: refuse body
+isolated repair → tests →              ▼                         trust gate + live hashes
+independent read-only review   deterministic ruling                ├─ pass: return bytes
+        │                     + ledger + trust table              └─ fail: refuse body
         ▼
-coding-agent executor
-(Codex by default)
+receipt and trust output
         │
         ▼
-isolated repair → tests → independent read-only review → receipt
+next commit stages exact verified bytes
 ```
 
-The local background worker handles the first path. It watches declared dependencies, batches changes during a quiet period, snapshots staged and working bytes in isolation, asks a read-only Strands Repair Planner for a bounded plan, and lets the configured coding agent edit only allowlisted documents. Tests, source/index integrity, policy versions, and a separate read-only coding-agent review must pass before a receipt and trust update are published. The worker never stages files; the commit integration stages only exact verified outputs.
+The local background worker handles the first path. It watches declared dependencies, waits two seconds before processing each new content identity, snapshots staged and working bytes in isolation, asks a read-only Strands Repair Planner for a bounded plan, and gives the configured coding agent an allowlisted target. Tests, source/index integrity, policy versions, and a separate read-only coding-agent review must pass before a receipt and trust update are published. The worker never stages files; the commit integration stages only exact verified outputs. Publication rejects edits outside that allowlist, while the trusted local executor itself receives workspace-write access inside the temporary repository.
 
 The legacy-compatible command is also available:
 
@@ -63,11 +62,13 @@ The legacy-compatible command is also available:
 docgov repair --json
 ```
 
+For an eligible staged change, this one-shot command requires `DOCGOV_ENABLE_MODEL=1` and `DOCGOV_VERIFY_COMMAND` (or an explicit verifier option). It does not inherit the installed worker's private configuration and it does not replace the worker's separate coding-agent review.
+
 ## Why this fits Professional Agents
 
 Software engineers and small teams repeatedly reconcile documentation with code, check whether “verified” claims still have evidence, and repeat tests after an agent handoff. Doc Governor clears that routine work while keeping consequential decisions with a person.
 
-The system can repair a claim that source code proves. It routes unsupported, ambiguous, protected, legal, and public-copy claims to human review. Repair and trust are separate decisions.
+The system can repair a claim that source code supports. Deterministic checks route many unsupported, ambiguous, protected, legal, and public-copy cases to human review. Token grounding is heuristic and cannot prove behavior, so repair and trust remain separate evidence-bound decisions.
 
 ## AWS Strands implementation
 
@@ -105,6 +106,8 @@ The Repair Planner is separate from these roles. It returns a plan, never a writ
 }
 ```
 
+The JSON block is generic MCP-client syntax; `docgov install` writes the equivalent Codex configuration as TOML.
+
 The server exposes read-only tools:
 
 | Tool | Result |
@@ -113,7 +116,7 @@ The server exposes read-only tools:
 | `list_documents(type?, usable_only?)` | Documents that pass the same usability checks; refused entries can be requested with `usable_only=false`. |
 | `document_status(path)` | Trust record and live fingerprint status, never document content. |
 
-Refusals always return `content: null`. The server rejects traversal, absolute paths, URL schemes, non-Markdown paths, and symlinks escaping the repository. Missing or unknown trust-state versions fail closed. The MCP read path has no write, shell, or network tool and does not prevent a client from bypassing it with another filesystem tool.
+`get_document` refusals return `content: null`. The server rejects traversal, absolute paths, URL schemes, non-Markdown paths, and symlinks escaping the repository. Missing or unknown trust-state versions fail closed. The MCP read path has no write, shell, or network tool and does not prevent a client from bypassing it with another filesystem tool.
 
 Trust is evidence-bound, not proof of truth. The Catalog is owner-maintained, and every dependency must be declared. TTLs are checked when trust state is regenerated; the MCP read rechecks stored document and dependency hashes on every request.
 
@@ -123,10 +126,10 @@ Trust is evidence-bound, not proof of truth. The Catalog is owner-maintained, an
 
 ```sh
 python -m pip install 'doc-governor[mcp]'
-docgov init
+docgov init                 # prints a proposal; writes nothing without --apply
 ```
 
-Register canonical documents in `.docgov/catalog.yaml`. The five supported types are:
+Register canonical documents in `.docgov/catalog.yaml`, fill in their dependencies and approval policy, then review the proposal before using `docgov init --apply`. Generated records begin as `review_required` and do not become trusted automatically. The five supported types are:
 
 - `contract`: source-backed specification
 - `state`: time-limited operational claim
@@ -136,7 +139,7 @@ Register canonical documents in `.docgov/catalog.yaml`. The five supported types
 
 Each record declares its owner, dependencies, approval policy, and (when needed) TTL. `.docgov/ledger.jsonl` is append-only evidence; `.docgov/trust.json` is the deterministic table consumed by MCP.
 
-### Run local repair
+### Run local repair in a consuming repository
 
 Install the background worker with a verification command and start it in the repository:
 
@@ -145,11 +148,11 @@ python -m pip install -e '.[bedrock,mcp]'
 docgov install --verify-command 'python3 -m unittest discover -v'
 ```
 
-The planner uses short-lived AWS credentials and Nova Lite. Codex is the default local executor; a trusted stdin-capable command can be configured for another coding agent. The executor never receives permission to change source code, Catalog policy, ledger history, or protected documents.
+Before installation, the repository needs at least one committed, unprotected `contract` or `procedure` in `policies.auto_repair_documents`, the same target in the committed coding-review policy, an authenticated Codex CLI, and working Bedrock access. The submission repository's own catalog keeps its background-schema contract in `review_required` for the public refusal demo; use an eligible contract in a consuming repository or the example fixture for an installable worker. The planner uses the normal configured AWS credential chain locally. GitHub Actions can exchange short-lived OIDC credentials. Codex is the default local executor; a trusted stdin-capable command can be configured for another coding agent. Publication rejects source, policy, ledger, protected-document, and other out-of-scope edits after the isolated executor runs.
 
 ### Add pull-request governance
 
-Copy `.github/workflows/docgov-review.yml` and configure a short-lived GitHub OIDC role with the least-privilege policy in [`infra/aws/bedrock-inference-policy.json`](infra/aws/bedrock-inference-policy.json). The action defaults to deterministic mode; enable Bedrock only for same-repository pull requests when `DOCGOV_AWS_ROLE_ARN` and `DOCGOV_ENABLE_MODEL=true` are configured.
+Copy `.github/workflows/docgov-review.yml` together with its companion action/package, or replace its local `uses: ./` step with the pinned external action shown below. Configure a short-lived GitHub OIDC role with the least-privilege policy in [`infra/aws/bedrock-inference-policy.json`](infra/aws/bedrock-inference-policy.json). The action defaults to deterministic mode; the supplied workflow requests Bedrock only for same-repository pull requests when both `DOCGOV_AWS_ROLE_ARN` and `DOCGOV_ENABLE_MODEL=true` are configured.
 
 ```yaml
 - uses: SophieYu04/doc-governor-strands@4242aa1f0a8ad956df855783866b8e3b82df1808
@@ -158,11 +161,11 @@ Copy `.github/workflows/docgov-review.yml` and configure a short-lived GitHub OI
     base_sha: ${{ github.event.pull_request.base.sha }}
     head_sha: ${{ github.event.pull_request.head.sha }}
     apply: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
-    enable_model: ${{ vars.DOCGOV_ENABLE_MODEL == 'true' }}
+    enable_model: ${{ github.event.pull_request.head.repo.full_name == github.repository && vars.DOCGOV_AWS_ROLE_ARN != '' && vars.DOCGOV_ENABLE_MODEL == 'true' }}
     model_id: us.amazon.nova-lite-v1:0
 ```
 
-Safe duplicate merges and grounded contract spans are re-proved by deterministic code. Ambiguous or protected changes produce a decision card and remain blocked until a maintainer authorizes them.
+Safe duplicate merges and grounded contract spans are rechecked by deterministic code. Ambiguous or protected changes produce findings or a decision card. A maintainer's approval is narrow: it does not supply missing evidence or resolve every canonical conflict automatically.
 
 ## Test the model path
 
@@ -175,7 +178,7 @@ AWS_PROFILE=docgov-local AWS_REGION=us-west-2 \
 python scripts/background_demo.py --live --output /tmp/docgov-live-schema
 ```
 
-The retained acceptance evidence under [`submission/`](submission/) records observed runs and sanitized hashes. It does not claim provider-level traces for every call or a production deployment.
+The retained acceptance evidence under [`submission/`](submission/) records observed runs and sanitized hashes. It does not include a full implementation fingerprint, provider-level traces for every call, or a production deployment, so it is historical evidence from an isolated fixture rather than proof that the current `main` commit executed the same live path.
 
 ## Read-only environment drift
 
