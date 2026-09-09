@@ -1,14 +1,14 @@
 {
   "catalog_path": ".docgov/catalog.yaml",
-  "catalog_sha256": "15a397c2e866821d36b5cc7d45c73d7a07342847d6e6fd9ecf5547a8a1f978a6",
+  "catalog_sha256": "def85ca6b8fab0bff9fd01fb46cdfdc5496841b116acae28b1a5db1187681380",
   "documents": [
     {
       "canonical_path": null,
       "content_sha256": "fdb0623549767c7626ade41279725741f07b074255435ccb0ec345a5b96b317f",
-      "dependency_fingerprint": "30abd0e16f80f7c7cf51bf1f2b59c1c7a004079b47d3181ab7c7ffc53fafa16b",
+      "dependency_fingerprint": "4cf083b874db543241e73ddf8438470b2fe5a14c472d312e05d603a055eb9883",
       "head_sha": "ca95ff5bcf89f55e92c37361cadca4a0545a3e2e",
       "path": "AGENTS.md",
-      "reason": "Governance control document is readable so the trust gate can bootstrap.",
+      "reason": "Doc Governor blocked this document in its latest run.",
       "scope": "current_fact",
       "source_pointers": [
         ".github/workflows/docgov-audit.yml",
@@ -43,17 +43,17 @@
         "docgov/trust_state.py"
       ],
       "type": "procedure",
-      "usable": true,
+      "usable": false,
       "verified_at": "2026-09-06T11:16:47Z"
     },
     {
       "canonical_path": null,
       "content_sha256": "d55fc624c146073d3ae970e9e8d4590e5b4d685af1bef872b4ea5f4b22175e4b",
-      "dependency_fingerprint": "b1693403faf3a4c6464872d067676ead8166978ba9cd940c8135768c4ca8e877",
+      "dependency_fingerprint": "715351a8732a29c3b0a4192ba4e4eca798222b0d6e15a0c34a8e7c8469a14943",
       "head_sha": "4242aa1f0a8ad956df855783866b8e3b82df1808",
       "path": "README.md",
-      "reason": "The document is current and its recorded evidence still matches.",
-      "scope": "current_fact",
+      "reason": "Catalog status is 'stale', not current.",
+      "scope": "untrusted",
       "source_pointers": [
         ".github/workflows/docgov-audit.yml",
         ".github/workflows/docgov-init.yml",
@@ -111,7 +111,7 @@
         "tests/test_trust_state.py"
       ],
       "type": "contract",
-      "usable": true,
+      "usable": false,
       "verified_at": "2026-09-08T14:52:01Z",
       "verifier": "codex:01a0817f-1ee3-7b63-8656-91f6f3168eee"
     },

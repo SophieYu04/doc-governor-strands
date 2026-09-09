@@ -30,7 +30,7 @@ documents:
 - path: README.md
   type: contract
   owner: maintainers
-  status: current
+  status: stale
   depends_on:
   - docgov/**
   - action.yml
