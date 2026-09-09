@@ -1,0 +1,147 @@
+{
+  "authorization": {
+    "README.md": "c8268b9f9fac06773252f1fe8057b14e7950c7dd789d8936d8041b833c4e444a"
+  },
+  "documents": [
+    {
+      "dependency_fingerprint": "715351a8732a29c3b0a4192ba4e4eca798222b0d6e15a0c34a8e7c8469a14943",
+      "path": "README.md",
+      "sha256": "2bc18ddcf9caabd0892265f48232ab0edd6f9b71cc6463d8b5a337ab12815b83",
+      "verdict": "trusted"
+    }
+  ],
+  "evidence": [
+    {
+      "path": ".github/workflows/docgov-review.yml",
+      "sha256": "06518c23b0119f5397c2835ee2b9b922cdd890be2f2efef025dd9c46c90e6754"
+    },
+    {
+      "path": "action.yml",
+      "sha256": "d3545c2dedca7ab27736d747dac17369e3928603f90b670ad37667d9b2cd6b81"
+    },
+    {
+      "path": "docgov/agents.py",
+      "sha256": "c3fd523edb463468a35c1538a986c8118ed3af4a6ebfaf99ffe3b32afaffaf5a"
+    },
+    {
+      "path": "docgov/background.py",
+      "sha256": "ff5d82739972c0422254a4d8ff9fe7f546551aa36b1b6462d4df15c6697ea4e8"
+    },
+    {
+      "path": "docgov/catalog.py",
+      "sha256": "cdeb3da41229bb242f625aee43e7eec7ae87ef3ae9817f6c307463a81256b597"
+    },
+    {
+      "path": "docgov/cli.py",
+      "sha256": "701b38e6b7aa48b67191458cc124f271d521c6355e65604fe16291b3222c2a56"
+    },
+    {
+      "path": "docgov/coding_review.py",
+      "sha256": "4db6d68e27436f63e72719a93817cda385681a5898a30e174d4152224c43676a"
+    },
+    {
+      "path": "docgov/drafting.py",
+      "sha256": "81ba13070dd4b1761f2bcc74a53b7261ab7979d1eee85ae7912a374f76165290"
+    },
+    {
+      "path": "docgov/engine.py",
+      "sha256": "cd61fd25749c3ff76d8be995428c73f19a07243327bb237cbe773e880bd7c2f7"
+    },
+    {
+      "path": "docgov/install.py",
+      "sha256": "e15f6faee507ab1cb5ba2085da61a36bc01b887be383886dc17713bca71dfa75"
+    },
+    {
+      "path": "docgov/ledger.py",
+      "sha256": "fc4877f2af673567293451f69db0174b0849e5786d9073f38a55e23662850a68"
+    },
+    {
+      "path": "docgov/mcp_server.py",
+      "sha256": "7c337e2ad22ecec409f3d51a4ff0688ce35eb9f74170a0148295e02abcc7eac7"
+    },
+    {
+      "path": "docgov/repair.py",
+      "sha256": "7e862439c0bc2a810e374a2303b121697ef69fbb9919646b77e868b7652b725f"
+    },
+    {
+      "path": "docgov/repair_agents.py",
+      "sha256": "2cc783c9963dfde8248744710254c951627c48a88f20396d1b15d8d0eb557e7f"
+    },
+    {
+      "path": "docgov/repair_executor.py",
+      "sha256": "41443574bf2fd1cc27c4c56cd7929edad46d2a5b8f00001e7dd839428e966042"
+    },
+    {
+      "path": "docgov/supabase_remote.py",
+      "sha256": "dbf3f1591e087304be97105a2db22075cf257ce6f35eb4e6febb9990e9f7c14a"
+    },
+    {
+      "path": "docgov/trust_state.py",
+      "sha256": "c2af2bd956d1f508170b14e0abf0385fae96cd49c0ce8d30e99f937afa18cbed"
+    },
+    {
+      "path": "examples/background-schema/schema.sql",
+      "sha256": "4b471f26cc718dcb9efe26721bf5ae5c0adc3af0899770566de0f40096d7b41f"
+    },
+    {
+      "path": "examples/background-schema/verify.py",
+      "sha256": "f0b776340929c0ff2b415b33bd425fae76174b351dd5b5c58513db7648ca1a3c"
+    },
+    {
+      "path": "pyproject.toml",
+      "sha256": "59b2d91596ab84681c176381ba969104423361da81616c35d7ec5eb76322990d"
+    },
+    {
+      "path": "scripts/background_demo.py",
+      "sha256": "0928777feec2fb6740d90e8e60b33e52f428932bc3d40e635ae6e954ff2d004f"
+    },
+    {
+      "path": "scripts/demo.py",
+      "sha256": "e11dd82728fd2c0e919ef7ce62dad95a6dcd992db80df2336a7feb3ca52eefb3"
+    },
+    {
+      "path": "submission/background-maintenance-acceptance.json",
+      "sha256": "0d88c0b6b229ae33ab5223a1f3fe46859cba5d93a97fe866b9e556525e5f170c"
+    },
+    {
+      "path": "submission/background-schema-live-run-20260908-review-receipt.json",
+      "sha256": "47421de3d165aec6f0790d9dbdea68e4534f072571dbefae436d87c16040cc46"
+    },
+    {
+      "path": "submission/background-schema-live-run-20260908.json",
+      "sha256": "6abd8225fc06d8937b731ebd4ab1b17d3956766d1d4e2dfe4d8517abe4f98873"
+    },
+    {
+      "path": "tests/test_background.py",
+      "sha256": "e6a626c83a2343f9338b98b387f09c9a93a2f69f612086e4abbf829fde20f7e4"
+    },
+    {
+      "path": "tests/test_coding_review.py",
+      "sha256": "76df4c8a736f8ec9d694cf3e82c8d9131c4da52104a8db07979cfda32d6e1762"
+    },
+    {
+      "path": "tests/test_engine.py",
+      "sha256": "a79dc628a39379626e77b51ea9de5a50eff9cd61e832cfb6939f7de8d019138a"
+    },
+    {
+      "path": "tests/test_mcp_server.py",
+      "sha256": "923e9acb5e2c6e257e7938a23e44b08e5a8c4c27afd867c13d063aa585e7837d"
+    },
+    {
+      "path": "tests/test_strands_graph.py",
+      "sha256": "2e28c8bad3f33fcec68a3925f5dcf547c22a13951491bf2e6c62d6e2a51e3e79"
+    },
+    {
+      "path": "tests/test_supabase_remote.py",
+      "sha256": "185983f97a22e36f0979803f7ed15a664415edfc4eb064ad9d9ef24e642730d8"
+    }
+  ],
+  "model_executed": true,
+  "reviewer": "codex:01a08756-0f13-7273-9bf3-d8da82f154e0",
+  "snapshot_id": "8fb3cf463b38022e8dfd4b86d1fb6c5ddb3073e9a7f0b708b66e4ee6f4a75aaf",
+  "source_head": "65d9c2087b459ca1caec1b85a551b56ce3989e2a",
+  "source_index_tree": "3a3c4b6453bff3ea45555853b86727bbf5f47605",
+  "verifier_command": "env PYTHONDONTWRITEBYTECODE=1 /tmp/docgov-check-venv/bin/python -m unittest discover -v",
+  "verifier_output_sha256": "bc17b8e6e7a63b638626c1bec3263b68e15d39195ca3ac0ef374d0e65926898a",
+  "version": 2
+}
