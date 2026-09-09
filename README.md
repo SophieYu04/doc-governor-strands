@@ -22,6 +22,8 @@ Coding agents are also excellent at producing text and poor at maintaining a sma
 
 For same-repository PRs with apply enabled, the action attempts a correction commit for safe changes, even when a separate high-risk finding still blocks the pull request. It blocks ambiguous, destructive, legal, public-copy, and unsupported-state changes and attempts to publish a decision card in the pull request. A maintainer adds the `docgov-approved` label to authorize a one-time rerun for the current commit.
 
+In `action.yml`, the `govern` step uses `set +e` and records the CLI status as an output rather than exiting with that status. The conditional `commit` step follows it. Only the later `finalize` step exits with code `2` for `action_required` or `blocked`; publication still depends on the commit step's same-repository, apply, and changed-output conditions and on Git push succeeding.
+
 The model is reserved for semantic classification and ambiguity. Hashes, dependency matching, TTL checks, path boundaries, trust decisions, Supabase Advisor evidence, and ledger writes are deterministic and can run without AWS.
 
 ## The three enforcement points
@@ -266,7 +268,7 @@ Call `list_documents(usable_only=false)` to discover unusable entries in the loa
 - The server exposes **no write, shell, or network tool**, and its read handlers make no network calls. It does not install a process-level network-egress restriction. It reads local files, including the trust table and, for delegated reviews, policy, receipt, and ledger evidence.
 - It rejects absolute paths, `..` segments, Windows drive letters, URL schemes, NUL bytes, non-Markdown suffixes, and symlinks that resolve outside the repository root.
 - Refusal responses set `content` to null and do not extract a document excerpt. Generated blocking reasons use fixed messages rather than model prose; stored reasons and paths are still returned from trusted local control data. This is not sanitization of an arbitrarily tampered trust table. `list_documents` summarizes only entries that pass its usability recheck.
-- When `.docgov/trust.json` is missing or declares an unknown schema version, the server records a load error and refuses document reads; listings return no entries. This does not require server startup to abort, and it never falls back to serving everything.
+- When `.docgov/trust.json` is missing or declares an unknown schema version, the `docgov-mcp` stdio entry point refuses to start and exits with code `2`. An in-process `DocumentSupply` records a load error, refuses document reads, and returns no listing entries. Neither path falls back to serving everything.
 - Content is read from disk at call time, never cached at startup, because the repository changes underneath a long-running server.
 
 ## Four constrained roles across two Strands workflows

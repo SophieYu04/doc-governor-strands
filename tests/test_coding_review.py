@@ -174,6 +174,9 @@ if mode != 'empty_model': print(json.dumps({'type':'turn.completed','usage':{'ou
         self.assertEqual(result.result, "action_required")
 
     def test_stale_contract_is_promoted_only_after_review(self):
+        document = self.root / 'docs/API.md'
+        historical = '# API\nStatus: Current\nLast verified: 2000-01-01\nVersion 1.\n'
+        document.write_text(historical)
         path = self.root / ".docgov/catalog.yaml"
         catalog = json.loads(path.read_text()); catalog['documents'][0]['status'] = 'stale'
         path.write_text(json.dumps(catalog))
@@ -182,6 +185,7 @@ if mode != 'empty_model': print(json.dumps({'type':'turn.completed','usage':{'ou
         self.assertEqual(build_snapshot(self.root, path).catalog.record_for('docs/API.md').status, 'stale')
         self.assertEqual(self.review().result, "changed")
         self.assertEqual(build_snapshot(self.root, path).catalog.record_for('docs/API.md').status, 'current')
+        self.assertEqual(document.read_text(), historical)
 
     def test_mcp_rechecks_revocation_without_regenerating_trust_table(self):
         from docgov.trust_state import build_trust_state, write_trust_state
