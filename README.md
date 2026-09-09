@@ -112,7 +112,6 @@ The server exposes read-only tools:
 | `get_document(path)` | Exact document bytes, or a refusal with a reason and source pointers when available. |
 | `list_documents(type?, usable_only?)` | Documents that pass the same usability checks; refused entries can be requested with `usable_only=false`. |
 | `document_status(path)` | Trust record and live fingerprint status, never document content. |
-| `list_verifications` / `verification_status` | Reusable command evidence without executing a command. |
 
 Refusals always return `content: null`. The server rejects traversal, absolute paths, URL schemes, non-Markdown paths, and symlinks escaping the repository. Missing or unknown trust-state versions fail closed. The MCP read path has no write, shell, or network tool and does not prevent a client from bypassing it with another filesystem tool.
 
