@@ -1,6 +1,8 @@
 # Doc Governor
 
-AI coding agents treat repository documents as memory. When that memory is stale or unsupported, engineers waste work, tokens, and time—and changes become difficult to trust.
+**Coding agents treat documents as memory. Doc Governor decides which memories they are allowed to trust.**
+
+When that memory is stale or unsupported, engineers waste work, tokens, and time—and changes become difficult to trust.
 
 **Repair documents. Review evidence. Recheck every governed read.**
 
