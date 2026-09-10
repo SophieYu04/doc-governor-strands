@@ -48,12 +48,12 @@
     },
     {
       "canonical_path": null,
-      "content_sha256": "2bc18ddcf9caabd0892265f48232ab0edd6f9b71cc6463d8b5a337ab12815b83",
+      "content_sha256": "1d944e85c7a7e11bf8f6f88e683786444d142df1cec4aa149fdd6a566e06bccf",
       "dependency_fingerprint": "715351a8732a29c3b0a4192ba4e4eca798222b0d6e15a0c34a8e7c8469a14943",
       "head_sha": "65d9c2087b459ca1caec1b85a551b56ce3989e2a",
       "path": "README.md",
-      "reason": "The document is current and its recorded evidence still matches.",
-      "scope": "current_fact",
+      "reason": "Coding-agent review is missing, revoked, or no longer matches the document and sources.",
+      "scope": "untrusted",
       "source_pointers": [
         ".github/workflows/docgov-audit.yml",
         ".github/workflows/docgov-init.yml",
@@ -111,7 +111,7 @@
         "tests/test_trust_state.py"
       ],
       "type": "contract",
-      "usable": true,
+      "usable": false,
       "verified_at": "2026-09-09T18:03:58Z",
       "verifier": "codex:01a08756-0f13-7273-9bf3-d8da82f154e0"
     },
